@@ -1,0 +1,31 @@
+[Unit]
+Description=CIPC LabEquip Hub API (LAN only)
+After=network.target
+
+[Service]
+Type=simple
+User=cipc-labequip
+Group=cipc-labequip
+WorkingDirectory=/opt/cipc-labequip/current
+Environment=NODE_ENV=production
+Environment=API_PORT=4000
+Environment=DATA_FILE=/var/lib/cipc-labequip/data/production.sqlite
+Environment=CORS_ORIGINS=http://127.0.0.1:8080,http://localhost:8080
+Environment=SEED_DEMO_USERS=false
+Environment=TRUST_PROXY=true
+Environment=COOKIE_SECURE=false
+Environment=BACKUP_DIR=/var/lib/cipc-labequip/backups
+Environment=BACKUP_RETENTION=14
+ExecStart=/usr/bin/node apps/api/server.mjs
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/cipc-labequip
+
+[Install]
+WantedBy=multi-user.target

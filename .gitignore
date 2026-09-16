@@ -1,0 +1,17 @@
+node_modules/
+.next/
+dist/
+build/
+coverage/
+output/
+.env
+.env.*
+!.env.example
+.DS_Store
+*.log
+uploads/
+apps/api/data/*
+!apps/api/data/.gitkeep
+.omx/
+.playwright-cli/
+deploy/vps/.release-id

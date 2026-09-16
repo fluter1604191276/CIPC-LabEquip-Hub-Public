@@ -1,0 +1,529 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f6f7f9" />
+    <title>CIPC LabEquip Hub | 仪器共享预约平台</title>
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css?v=20260728-1" />
+  </head>
+  <body class="auth-pending">
+    <a class="skip-link" href="#main-content">跳至主内容</a>
+    <main class="auth-screen" id="auth-screen" aria-labelledby="login-title">
+      <section class="auth-brand-panel">
+        <div class="auth-brand-lockup"><span class="brand-mark">C</span><span><strong>CIPC</strong><small>LabEquip Hub</small></span></div>
+        <div class="auth-brand-copy"><p>LABORATORY RESOURCE PLATFORM</p><h1>实验室设备共享与预约</h1><span>统一管理设备、空间和预约排期。</span></div>
+        <div class="auth-brand-footer">CIPC INTERNAL ACCESS</div>
+      </section>
+      <section class="auth-form-panel">
+        <form class="auth-card" id="login-form">
+          <div><p class="kicker">ACCOUNT LOGIN</p><h2 id="login-title">登录系统</h2><p>使用分配的实验室账号进入管理平台。</p></div>
+          <label>用户名<input id="login-username" name="username" type="text" autocomplete="username" autocapitalize="none" required /></label>
+          <label>密码<input id="login-password" name="password" type="password" autocomplete="current-password" required /></label>
+          <p class="auth-error" id="login-error" role="alert" hidden></p>
+          <button class="primary-button auth-submit" type="submit">登录 <span>→</span></button>
+          <p class="auth-footnote">系统不开放自主注册。如需账号，请联系平台管理员。</p>
+        </form>
+      </section>
+    </main>
+
+    <div class="password-change-screen" id="password-change-screen" hidden>
+      <form class="password-change-card" id="password-change-form">
+        <input id="password-change-username" name="username" type="text" autocomplete="username" class="visually-hidden" tabindex="-1" aria-hidden="true" />
+        <div class="password-change-icon">⌁</div>
+        <p class="kicker">FIRST LOGIN</p>
+        <h2>创建新密码</h2>
+        <p>当前账号仍在使用初始密码。完成修改后才能进入系统。</p>
+        <label>当前密码<input id="current-password" name="current-password" type="password" autocomplete="current-password" required /></label>
+        <label>新密码<input id="new-password" name="new-password" type="password" autocomplete="new-password" minlength="8" maxlength="128" required /></label>
+        <label>确认新密码<input id="confirm-password" name="confirm-password" type="password" autocomplete="new-password" minlength="8" maxlength="128" required /></label>
+        <small>新密码需为 8-128 个字符，并同时包含字母和数字。</small>
+        <p class="auth-error" id="password-change-error" role="alert" hidden></p>
+        <button class="primary-button auth-submit" type="submit">保存并进入系统 <span>→</span></button>
+        <button class="text-button" id="password-change-logout" type="button">退出当前账号</button>
+      </form>
+    </div>
+
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="主导航">
+        <div class="brand-lockup">
+          <div class="brand-mark">C</div>
+          <div>
+            <strong>CIPC</strong>
+            <span>LabEquip Hub</span>
+          </div>
+        </div>
+
+        <div class="workspace-switcher">
+          <span class="eyebrow">当前空间</span>
+          <button class="workspace-button" type="button">
+            <span><span class="status-dot green"></span> CIPC 全部实验室</span>
+          </button>
+        </div>
+
+        <nav class="nav-group">
+          <span class="nav-label">工作台</span>
+          <button class="nav-item active" data-view="overview" type="button"><span class="nav-icon">⌂</span>总览</button>
+          <button class="nav-item" data-view="calendar" type="button"><span class="nav-icon">◷</span>预约日历</button>
+          <button class="nav-item" data-view="my-reservations" type="button"><span class="nav-icon">◉</span>我的预约</button>
+          <button class="nav-item" data-view="meeting-rooms" type="button"><span class="nav-icon">▣</span>会议室预约</button>
+        </nav>
+
+        <nav class="nav-group secondary-nav">
+          <span class="nav-label">资源与业务</span>
+          <button class="nav-item" data-view="equipment" type="button"><span class="nav-icon">▦</span>设备台账 <span class="nav-count">0</span></button>
+          <button class="nav-item" data-view="maintenance" type="button"><span class="nav-icon">⌁</span>维修与保养 <span class="nav-count warning">0</span></button>
+          <button class="nav-item" data-view="records" type="button"><span class="nav-icon">↗</span>采购记录</button>
+        </nav>
+
+        <nav class="nav-group secondary-nav">
+          <span class="nav-label">管理</span>
+          <button class="nav-item" data-view="members" type="button"><span class="nav-icon">♙</span>成员与权限</button>
+          <button class="nav-item" data-view="audit" type="button"><span class="nav-icon">◫</span>操作审计</button>
+        </nav>
+
+        <div class="sidebar-footer">
+          <button class="help-card" id="open-user-guide" type="button">
+            <span class="help-icon">?</span>
+            <div><strong>需要帮助？</strong><span>查看使用指南</span></div>
+            <span class="arrow">↗</span>
+          </button>
+          <div class="role-switcher">
+            <div class="role-menu" id="role-menu" aria-label="模拟权限视图" hidden>
+              <p>模拟权限视图</p>
+              <button class="role-option active" data-role-option="developer" aria-pressed="true" type="button"><span class="role-option-icon dev">D</span><span><strong>开发者权限</strong><small>全部功能与测试入口</small></span><i>✓</i></button>
+              <button class="role-option" data-role-option="admin" aria-pressed="false" type="button"><span class="role-option-icon admin">管</span><span><strong>系统管理员</strong><small>业务功能与成员管理</small></span><i>✓</i></button>
+              <button class="role-option" data-role-option="member" aria-pressed="false" type="button"><span class="role-option-icon member">用</span><span><strong>普通用户</strong><small>设备、预约与业务记录</small></span><i>✓</i></button>
+            </div>
+            <button class="user-mini role-switcher-trigger" id="role-switcher-trigger" aria-haspopup="true" aria-expanded="false" aria-controls="role-menu" type="button">
+              <span class="avatar avatar-slate" id="sidebar-user-avatar">D</span>
+              <span class="role-identity"><strong id="sidebar-user-name">账号</strong><span id="role-view-label">正在验证身份</span></span>
+              <span class="role-switch-chevron">⌃</span>
+            </button>
+            <button class="password-button" id="open-password-change" aria-label="修改密码" title="修改密码" type="button">⌁</button>
+            <button class="logout-button" id="logout-button" aria-label="退出登录" title="退出登录" type="button">↪</button>
+          </div>
+        </div>
+      </aside>
+
+      <main class="main-content" id="main-content" tabindex="-1">
+        <header class="topbar">
+          <button class="mobile-menu icon-button" aria-label="打开导航" type="button">☰</button>
+          <div class="breadcrumb"><span>工作台</span><span>/</span><strong id="breadcrumb-current">总览</strong></div>
+            <div class="topbar-actions">
+            <div class="notification-wrap"><button class="icon-button notification-button" aria-label="通知" aria-controls="notification-panel" aria-expanded="false" type="button"><span aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 7h18s-3 0-3-7M10 20h4" /></svg></span><i id="notification-dot" hidden></i></button><div class="notification-popover" id="notification-panel" hidden><div class="notification-popover-heading"><strong>通知</strong><button class="notification-close" aria-label="关闭通知" type="button">×</button></div><p id="notification-summary">暂无新通知</p><div id="notification-list"></div></div></div>
+            <div class="topbar-divider"></div>
+            <div class="avatar avatar-orange" id="topbar-role-avatar">D</div>
+          </div>
+        </header>
+
+        <div class="page-content">
+          <div class="workspace-view active" id="overview-view">
+          <section class="page-heading">
+            <div>
+              <p class="kicker">WEDNESDAY · 23 JULY 2026</p>
+              <h1 id="page-title">欢迎回来 <span>✦</span></h1>
+              <p class="subtitle">这里是 CIPC 实验室的设备共享工作台。</p>
+            </div>
+            <button class="primary-button" id="open-reservation" type="button"><span>＋</span> 新建预约</button>
+          </section>
+
+          <section class="stats-grid" aria-label="设备概况">
+            <article class="stat-card stat-card-orange">
+              <div class="stat-top"><span class="stat-label">设备总数</span><span class="stat-icon">▦</span></div>
+              <div class="stat-value">00</div>
+              <div class="stat-meta"><span id="equipment-total-note">尚未录入设备</span></div>
+            </article>
+            <article class="stat-card">
+              <div class="stat-top"><span class="stat-label">当前可用</span><span class="stat-icon green-icon">✓</span></div>
+              <div class="stat-value">00</div>
+              <div class="stat-meta"><span id="equipment-available-note">尚未录入设备</span></div>
+            </article>
+            <article class="stat-card">
+              <div class="stat-top"><span class="stat-label">今日预约</span><span class="stat-icon blue-icon">◷</span></div>
+              <div class="stat-value">00</div>
+              <div class="stat-meta"><span id="today-reservation-note">今天暂无预约</span></div>
+            </article>
+            <article class="stat-card">
+              <div class="stat-top"><span class="stat-label">维修保养</span><span class="stat-icon red-icon">⌁</span></div>
+              <div class="stat-value">00</div>
+              <div class="stat-meta"><span id="maintenance-equipment-note">暂无待处理事项</span></div>
+            </article>
+          </section>
+
+          <section class="dashboard-grid">
+            <article class="panel equipment-panel" id="equipment-section">
+              <div class="panel-heading">
+                <div><h2>设备总览</h2><p>快速查看实验室设备状态</p></div>
+                <button class="text-button" id="view-all-equipment" type="button">查看全部 <span>→</span></button>
+              </div>
+              <div class="table-tools">
+                <label class="search-box"><span>⌕</span><input id="equipment-search" type="search" placeholder="搜索设备名称、型号或编号" /></label>
+                <div class="filter-pills" role="group" aria-label="设备状态筛选">
+                  <button class="filter-pill active" data-filter="all" aria-pressed="true" type="button">全部</button>
+                  <button class="filter-pill" data-filter="available" aria-pressed="false" type="button"><i class="pill-dot green"></i>可用</button>
+                  <button class="filter-pill" data-filter="maintenance" aria-pressed="false" type="button"><i class="pill-dot red"></i>维修</button>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>设备</th><th>所在实验室</th><th>保管人</th><th>状态</th><th></th></tr></thead>
+                  <tbody id="equipment-table"></tbody>
+                </table>
+              </div>
+            </article>
+
+            <article class="panel schedule-panel" id="schedule-section">
+              <div class="panel-heading">
+                <div><h2>本周预约</h2><p>23 Jul — 29 Jul 2026</p></div>
+                <button class="square-button" id="calendar-view" aria-label="打开预约日历" type="button">↗</button>
+              </div>
+              <div class="schedule-summary"><span id="dashboard-week-count"><i class="pill-dot orange"></i> 本周 0 项预约</span><span id="dashboard-week-hours">共 0 小时</span></div>
+              <div class="mini-calendar">
+                <div class="calendar-days"><span>周一<small>20</small></span><span>周二<small>21</small></span><span>周三<small class="today">22</small></span><span>周四<small>23</small></span><span>周五<small>24</small></span><span>周六<small>25</small></span><span>周日<small>26</small></span></div>
+                <div class="calendar-track dashboard-week-track" id="dashboard-week-track"><div class="calendar-empty-hint">本周暂无预约</div></div>
+              </div>
+              <button class="full-width-button" id="open-calendar" type="button">查看完整日历 <span>→</span></button>
+            </article>
+          </section>
+
+          <section class="bottom-grid">
+            <article class="panel upcoming-panel">
+              <div class="panel-heading"><div><h2>今日安排</h2><p>尚未结束的设备与会议室预约</p></div><span class="date-badge">23 JUL</span></div>
+              <div class="upcoming-list" id="upcoming-list"></div>
+            </article>
+            <article class="panel attention-panel">
+              <div class="panel-heading"><div><h2>业务提醒</h2><p>待处理的维修与保养事项</p></div><span class="attention-count" id="attention-count">0</span></div>
+              <div class="attention-list" id="attention-list"><div class="empty-state compact"><strong>暂无业务提醒</strong><span>当前没有待处理的维修或保养事项。</span></div></div>
+            </article>
+          </section>
+
+          <footer class="page-footer"><span>CIPC LabEquip Hub · 内部资源平台</span><span id="dashboard-updated-at">数据更新时间：刚刚</span></footer>
+          </div>
+
+          <section class="workspace-view" id="equipment-view">
+            <section class="page-heading"><div><p class="kicker">EQUIPMENT DIRECTORY</p><h1>设备台账 <span>✦</span></h1><p class="subtitle">管理全部设备信息、责任人和当前状态。</p></div><button class="primary-button" id="open-equipment-form" type="button"><span>＋</span> 新增设备</button></section>
+            <section class="directory-stats"><div><span>设备总数</span><strong id="directory-total-count">0</strong><small>已录入台账</small></div><div><span>可预约设备</span><strong id="directory-bookable-count">0</strong><small>当前可预约</small></div><div><span>维修中</span><strong id="directory-maintenance-count">0</strong><small>需要关注</small></div><div><span>覆盖实验室</span><strong id="directory-laboratory-count">0</strong><small>有设备登记</small></div></section>
+            <article class="panel directory-panel"><div class="panel-heading"><div><h2>全部设备</h2><p>查看设备信息、所属实验室和使用状态</p></div><div class="directory-actions"><button class="text-button" id="export-equipment-directory" type="button">导出清单 <span>↓</span></button></div></div><div class="directory-toolbar"><label class="search-box wide-search"><span>⌕</span><input id="directory-search" type="search" placeholder="搜索设备名称、资产编号、性能指标或保管人" /></label><div class="toolbar-selects"><label class="directory-select laboratory-filter"><select id="directory-laboratory-filter" aria-label="按实验室筛选"><option value="all">全部实验室</option></select></label><label class="directory-select status-filter"><select id="directory-status-filter" aria-label="按状态筛选"><option value="all">全部状态</option><option value="available">可用</option><option value="maintenance">维修中</option><option value="disabled">已停用</option><option value="retired">已报废</option></select></label><label class="directory-select directory-sort"><select id="directory-sort" aria-label="设备排序"><option value="updated-desc">最近更新</option><option value="created-asc">最早录入</option><option value="name-asc">设备名称</option></select></label></div></div><div class="directory-table-wrap"><table class="directory-table"><thead><tr><th>设备信息</th><th>性能指标</th><th>所在实验室</th><th>保管人</th><th>共享状态</th><th>最近更新</th><th></th></tr></thead><tbody id="equipment-directory"></tbody></table></div><div class="table-pagination"><span>显示 0 / 共 0 台设备</span></div></article>
+          </section>
+
+          <section class="workspace-view" id="calendar-view-page">
+            <section class="page-heading"><div><p class="kicker">SHARED SCHEDULE</p><h1>预约日历 <span>✦</span></h1><p class="subtitle">按周掌握近期安排，按月查看整体占用，再进入单项资源核对完整排期。</p></div><button class="primary-button" id="calendar-reserve" type="button"><span>＋</span> 新建预约</button></section>
+            <div class="calendar-page-toolbar">
+              <div class="calendar-range"><button class="square-button" id="calendar-previous-week" type="button" aria-label="上一周">‹</button><strong>本周</strong><button class="square-button" id="calendar-next-week" type="button" aria-label="下一周">›</button><button class="today-button" id="calendar-today" type="button">今天</button></div>
+              <div class="calendar-page-actions"><div class="calendar-mode-switch" role="tablist" aria-label="日历查看方式"><button class="view-toggle active" id="calendar-overview-toggle" data-calendar-mode="overview" role="tab" aria-selected="true" type="button">周概览</button><button class="view-toggle" id="calendar-month-toggle" data-calendar-mode="month" role="tab" aria-selected="false" type="button">月视图</button><button class="view-toggle" id="calendar-resource-toggle" data-calendar-mode="resource" role="tab" aria-selected="false" type="button">单项资源</button></div><button class="secondary-button" id="calendar-refresh" type="button">↻ 刷新</button></div>
+            </div>
+            <section id="calendar-overview-panel" role="tabpanel" aria-labelledby="calendar-overview-toggle">
+              <div class="calendar-summary-band" aria-label="本周预约汇总"><div><span>全部预约</span><strong id="calendar-week-total">0</strong></div><div><span>设备预约</span><strong id="calendar-equipment-total">0</strong></div><div><span>会议室预约</span><strong id="calendar-room-total">0</strong></div><div><span>预约时长</span><strong id="calendar-hours-total">0h</strong></div></div>
+              <article class="panel calendar-overview-card"><header class="calendar-section-heading"><div><h2>本周预约概览</h2><p>每日显示最多三项，选择预约可查看对应资源的完整排期</p></div><span class="calendar-density-key"><i></i> 预约密度</span></header><div class="calendar-overview-scroll"><div class="calendar-overview-grid" id="calendar-overview-grid"></div></div></article>
+            </section>
+            <section id="calendar-month-panel" role="tabpanel" aria-labelledby="calendar-month-toggle" hidden>
+              <div class="month-calendar-layout">
+                <article class="panel month-calendar-board">
+                  <header class="calendar-section-heading"><div><h2>整月预约</h2><p>日期格展示预约摘要，选择日期后可在右侧查看当天完整安排</p></div><div class="month-calendar-legend"><span><i class="equipment-dot"></i>设备</span><span><i class="room-dot"></i>会议室</span></div></header>
+                  <div class="month-weekdays" aria-hidden="true"><span>周一</span><span>周二</span><span>周三</span><span>周四</span><span>周五</span><span>周六</span><span>周日</span></div>
+                  <div class="month-calendar-grid" id="calendar-month-grid" role="grid" aria-label="整月预约日历"></div>
+                </article>
+                <aside class="panel month-calendar-detail" aria-live="polite">
+                  <header><div><p class="kicker">DAY SCHEDULE</p><h2 id="calendar-month-detail-title">选择日期</h2><span id="calendar-month-detail-summary">查看当天的全部预约</span></div><button class="secondary-button" id="calendar-month-reserve" type="button">预约该日</button></header>
+                  <div class="month-detail-list" id="calendar-month-detail-list"></div>
+                </aside>
+              </div>
+            </section>
+            <section id="calendar-resource-panel" role="tabpanel" aria-labelledby="calendar-resource-toggle" hidden>
+              <div class="resource-calendar-layout">
+                <aside class="panel calendar-resource-sidebar"><header><h2>选择资源</h2><p>搜索设备名称、资产编号或会议室</p></header><label class="search-box calendar-resource-search"><span>⌕</span><input id="calendar-resource-search" type="search" placeholder="搜索资源" /></label><div class="calendar-resource-filters" role="group" aria-label="资源类型"><button class="filter-pill active" data-calendar-resource-filter="all" aria-pressed="true" type="button">全部</button><button class="filter-pill" data-calendar-resource-filter="equipment" aria-pressed="false" type="button">设备</button><button class="filter-pill" data-calendar-resource-filter="room" aria-pressed="false" type="button">会议室</button></div><div class="calendar-resource-list" id="calendar-resource-list"></div></aside>
+                <article class="panel calendar-resource-detail"><header class="selected-resource-header"><div class="selected-resource-title"><span class="equipment-thumb thumb-orange" id="calendar-selected-icon">◇</span><div><p class="kicker" id="calendar-selected-type">RESOURCE SCHEDULE</p><h2 id="calendar-selected-name">选择资源查看排期</h2><span id="calendar-selected-meta">从左侧列表选择设备或会议室</span></div></div><button class="secondary-button" id="calendar-resource-reserve" type="button" disabled>预约此资源</button></header><div class="resource-week-scroll"><div class="resource-week-grid" id="resource-week-grid"></div></div></article>
+              </div>
+            </section>
+          </section>
+
+          <section class="workspace-view" id="meeting-rooms-view">
+            <section class="page-heading"><div><p class="kicker">MEETING ROOMS</p><h1>会议室预约 <span>✦</span></h1><p class="subtitle">查看会议室、维护开放状态并安排共享时段。</p></div><div class="page-heading-actions"><button class="secondary-button manager-only" id="open-room-form" type="button"><span>＋</span> 新增会议室</button><button class="primary-button" id="open-room-reservation" type="button"><span>＋</span> 新建会议室预约</button></div></section>
+            <section class="meeting-room-grid" id="meeting-room-list"></section>
+          </section>
+
+          <section class="workspace-view" id="my-reservations-view">
+            <section class="page-heading"><div><p class="kicker">MY SCHEDULE</p><h1>我的预约 <span>✦</span></h1><p class="subtitle">集中查看设备与会议室预约，并直接进入对应资源日历。</p></div><button class="secondary-button" id="my-reservations-refresh" type="button">↻ 刷新</button></section>
+            <article class="panel my-reservations-panel"><div class="panel-heading"><div><h2>预约安排</h2><p id="my-reservations-summary">正在加载预约数据</p></div><div class="filter-pills" role="group" aria-label="预约状态筛选"><button class="filter-pill active" data-my-reservation-filter="all" aria-pressed="true" type="button">全部</button><button class="filter-pill" data-my-reservation-filter="approved" aria-pressed="false" type="button">未开始</button><button class="filter-pill" data-my-reservation-filter="in_use" aria-pressed="false" type="button">使用中</button><button class="filter-pill" data-my-reservation-filter="completed" aria-pressed="false" type="button">已完成</button><button class="filter-pill" data-my-reservation-filter="cancelled" aria-pressed="false" type="button">已取消</button></div></div><div class="my-reservations-list" id="my-reservations-list"></div></article>
+          </section>
+
+          <section class="workspace-view" id="maintenance-view">
+            <section class="page-heading"><div><p class="kicker">SERVICE & CARE</p><h1>维修与保养 <span>✦</span></h1><p class="subtitle">跟踪设备维修、定期保养和可用性风险。</p></div><button class="primary-button" id="open-maintenance-form" type="button"><span>＋</span> 新建记录</button></section>
+            <section class="maintenance-stats"><div class="maintenance-stat"><span class="stat-icon red-icon">⌁</span><div><small>待处理事项</small><strong id="maintenance-open-count">00</strong></div><span id="maintenance-open-note">暂无记录</span></div><div class="maintenance-stat"><span class="stat-icon orange-icon">◷</span><div><small>保养记录</small><strong id="maintenance-care-count">00</strong></div><span id="maintenance-care-note">暂无记录</span></div><div class="maintenance-stat"><span class="stat-icon green-icon">✓</span><div><small>已完成</small><strong id="maintenance-completed-count">00</strong></div><span id="maintenance-completed-note">暂无记录</span></div></section>
+            <article class="panel work-order-panel"><div class="panel-heading"><div><h2>维修与保养记录</h2><p id="maintenance-list-summary">按记录日期查看最近业务动态</p></div></div><div class="work-order-list" id="maintenance-list"></div></article>
+          </section>
+
+          <section class="workspace-view" id="records-view">
+            <section class="page-heading"><div><p class="kicker">PROCUREMENT & ASSETS</p><h1>采购记录 <span>✦</span></h1><p class="subtitle">记录设备采购信息并持续更新验收结果。</p></div><button class="primary-button" id="open-procurement-form" type="button"><span>＋</span> 新增记录</button></section>
+            <section class="record-banner"><div><span class="kicker">已验收采购金额</span><strong id="procurement-total">¥ 0.00</strong><small id="procurement-summary">尚未录入采购与验收数据</small></div></section>
+            <article class="panel procurement-panel"><div class="panel-heading"><div><h2>最近采购</h2><p>按采购批次查看经费和验收状态</p></div></div><div class="procurement-list" id="procurement-list"></div></article>
+          </section>
+
+          <section class="workspace-view" id="members-view">
+            <section class="page-heading"><div><p class="kicker">PEOPLE & ACCESS</p><h1>成员与权限 <span>✦</span></h1><p class="subtitle">查看已创建账号、角色和实验室基础信息。</p></div><button class="primary-button" id="open-member-form" type="button"><span>＋</span> 新增成员</button></section>
+            <section class="member-grid"><div class="member-summary panel"><span class="stat-icon orange-icon">♙</span><strong id="member-count">0</strong><small>已创建账号</small></div><div class="member-summary panel"><span class="stat-icon green-icon">✓</span><strong id="member-role-count">0</strong><small>普通用户</small></div><div class="member-summary panel"><span class="stat-icon blue-icon">⌁</span><strong id="laboratory-count">0</strong><small>实验室与空间</small></div></section>
+            <div class="access-grid"><article class="panel members-panel"><div class="panel-heading"><div><h2>成员账号</h2><p>账号由管理员统一创建，不开放注册</p></div><label class="search-box"><span>⌕</span><input id="member-search" type="search" placeholder="搜索姓名或用户名" /></label></div><div class="members-list" id="members-list"></div></article><article class="panel laboratory-panel"><div class="panel-heading"><div><h2>实验室与空间</h2><p>当前启用的基础空间</p></div></div><div class="laboratory-list" id="laboratory-list"></div></article></div>
+          </section>
+
+          <section class="workspace-view" id="audit-view">
+            <section class="page-heading"><div><p class="kicker">OPERATION AUDIT</p><h1>操作审计 <span>✦</span></h1><p class="subtitle">筛选、分页和导出设备、成员、预约与系统事件。</p></div><div class="page-heading-actions"><button class="secondary-button" id="audit-export" type="button">导出 CSV ↓</button><button class="secondary-button" id="audit-refresh" type="button">↻ 刷新</button></div></section>
+            <article class="panel audit-panel"><form class="audit-toolbar" id="audit-filter-form"><label class="search-box"><span>⌕</span><input id="audit-query" type="search" placeholder="搜索操作者、对象或摘要" /></label><label class="directory-select"><select id="audit-entity-type" aria-label="审计对象类型"><option value="">全部对象</option><option value="equipment">设备</option><option value="meeting_room">会议室</option><option value="reservation">设备预约</option><option value="room_reservation">会议室预约</option><option value="maintenance_record">维修保养</option><option value="procurement_record">采购</option><option value="user">成员</option><option value="system">系统</option></select></label><label class="compact-date"><span>从</span><input id="audit-date-from" type="date" /></label><label class="compact-date"><span>到</span><input id="audit-date-to" type="date" /></label><button class="primary-button" type="submit">筛选</button><button class="text-button" id="audit-reset" type="button">重置</button></form><div class="panel-heading"><div><h2>操作记录</h2><p id="audit-summary">正在加载审计记录</p></div></div><div class="audit-log-list" id="audit-log-list"></div><div class="list-pagination" id="audit-pagination"><button class="secondary-button" id="audit-previous" type="button">上一页</button><span>第 1 / 1 页</span><button class="secondary-button" id="audit-next" type="button">下一页</button></div></article>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <div class="modal-backdrop" id="reservation-modal" aria-hidden="true" inert>
+      <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="modal-header"><div><p class="kicker">NEW RESERVATION</p><h2 id="modal-title">新建预约</h2></div><button class="icon-button close-modal" aria-label="关闭" type="button">×</button></div>
+        <form id="reservation-form">
+            <div class="reservation-kind" role="group" aria-label="预约资源类型"><button class="view-toggle active" data-reservation-kind="equipment" aria-pressed="true" type="button">设备</button><button class="view-toggle" data-reservation-kind="room" aria-pressed="false" type="button">会议室</button></div>
+          <label id="reservation-equipment-field">选择设备<select id="reservation-equipment" required></select></label>
+          <label id="reservation-room-field" hidden>选择会议室<select id="reservation-room"></select></label>
+          <div class="form-row"><label>预约日期<input id="reservation-date" type="date" value="2026-07-23" required /></label><label>使用人数<input id="reservation-people" type="number" min="1" max="12" value="1" required /></label></div>
+          <div class="form-row"><label>开始时间<input id="reservation-start" type="time" value="15:00" required /></label><label>结束时间<input id="reservation-end" type="time" value="17:00" required /></label></div>
+          <p class="auth-error form-error" id="reservation-time-error" role="alert" hidden></p>
+          <label>使用用途<textarea id="reservation-purpose" rows="3" placeholder="例如：薄膜厚度测量与数据复核" required></textarea></label>
+          <div class="form-note"><span>i</span><span>开始时间必须晚于当前时间；提交后预约立即生效，并显示在今日安排和预约日历中。</span></div>
+          <div class="modal-actions"><button class="secondary-button close-modal" type="button">取消</button><button class="primary-button" type="submit">提交预约 <span>→</span></button></div>
+        </form>
+      </section>
+    </div>
+
+    <div class="modal-backdrop" id="meeting-room-modal" aria-hidden="true" inert>
+      <section class="modal record-form-modal" role="dialog" aria-modal="true" aria-labelledby="meeting-room-modal-title">
+        <div class="modal-header"><div><p class="kicker">MEETING ROOM</p><h2 id="meeting-room-modal-title">新增会议室</h2></div><button class="icon-button close-meeting-room-modal" aria-label="关闭会议室表单" type="button">×</button></div>
+        <form id="meeting-room-form">
+          <div class="form-row"><label>会议室名称<input id="meeting-room-name" type="text" maxlength="100" required /></label><label>会议室编号<input id="meeting-room-code" type="text" maxlength="40" required /></label></div>
+          <div class="form-row"><label>容纳人数<input id="meeting-room-capacity" type="number" min="1" max="500" required /></label><label>位置<input id="meeting-room-location" type="text" maxlength="200" /></label></div>
+          <label class="meeting-room-active-field" hidden>开放状态<select id="meeting-room-active"><option value="true">开放预约</option><option value="false">停用会议室</option></select></label>
+          <div class="form-note"><span>i</span><span>存在尚未结束的预约时，会议室将保持开放，需先处理相关预约。</span></div>
+          <p class="auth-error" id="meeting-room-error" role="alert" hidden></p>
+          <div class="modal-actions"><button class="secondary-button close-meeting-room-modal" type="button">取消</button><button class="primary-button" type="submit">保存会议室 <span>→</span></button></div>
+        </form>
+      </section>
+    </div>
+
+    <div class="modal-backdrop" id="equipment-modal" aria-hidden="true" inert>
+      <section class="modal equipment-form-modal" role="dialog" aria-modal="true" aria-labelledby="equipment-modal-title">
+        <div class="modal-header"><div><p class="kicker">NEW EQUIPMENT</p><h2 id="equipment-modal-title">新增设备</h2></div><button class="icon-button close-equipment-modal" aria-label="关闭" type="button">×</button></div>
+        <form id="equipment-form">
+          <div class="form-row"><label>设备名称<input id="new-equipment-name" type="text" placeholder="例如：光功率计" required /></label><label>资产编号<input id="new-equipment-code" type="text" placeholder="CIPC-EQ-090" required /></label></div>
+          <label>性能指标<input id="new-equipment-metric" type="text" placeholder="例如：波长范围 400–1100 nm" required /></label>
+          <label>所在实验室<select id="new-equipment-lab" required></select></label>
+          <div class="form-row"><label>设备保管人<input id="new-equipment-owner" type="text" placeholder="例如：测试成员01" required /></label><label>初始状态<select id="new-equipment-status"><option value="available">可用</option><option value="maintenance">维修中</option><option value="disabled">已停用</option><option value="retired">已报废</option></select></label></div>
+          <div class="form-note"><span>i</span><span>保存后设备会立即进入台账，可继续登记预约、维修保养和采购记录。</span></div>
+          <div class="modal-actions"><button class="secondary-button close-equipment-modal" type="button">取消</button><button class="primary-button" type="submit">保存设备 <span>→</span></button></div>
+        </form>
+      </section>
+    </div>
+
+    <div class="modal-backdrop" id="edit-equipment-modal" aria-hidden="true" inert>
+      <section class="modal equipment-form-modal" role="dialog" aria-modal="true" aria-labelledby="edit-equipment-modal-title">
+        <div class="modal-header"><div><p class="kicker">EDIT EQUIPMENT</p><h2 id="edit-equipment-modal-title">编辑设备信息</h2></div><button class="icon-button close-edit-equipment-modal" aria-label="关闭编辑设备信息" type="button">×</button></div>
+        <form id="edit-equipment-form">
+          <div class="form-row"><label>设备名称<input id="edit-equipment-name" type="text" maxlength="200" required /></label><label>资产编号<input id="edit-equipment-code" type="text" maxlength="80" required /></label></div>
+          <label>性能指标<input id="edit-equipment-metric" type="text" maxlength="500" required /></label>
+          <label>所在实验室<select id="edit-equipment-laboratory" required></select></label>
+          <label>设备保管人<input id="edit-equipment-owner" type="text" maxlength="200" required /></label>
+          <div class="form-note"><span>i</span><span>设备状态请在详情页单独修改；保存后名称、编号和归属信息会同步到台账、预约与业务记录。</span></div>
+          <p class="auth-error" id="edit-equipment-error" role="alert" hidden></p>
+          <div class="modal-actions"><button class="secondary-button close-edit-equipment-modal" type="button">取消</button><button class="primary-button" type="submit">保存信息 <span>→</span></button></div>
+        </form>
+      </section>
+    </div>
+
+    <div class="modal-backdrop" id="maintenance-modal" aria-hidden="true" inert>
+      <section class="modal record-form-modal" role="dialog" aria-modal="true" aria-labelledby="maintenance-modal-title">
+        <div class="modal-header"><div><p class="kicker">SERVICE RECORD</p><h2 id="maintenance-modal-title">新增维修保养记录</h2></div><button class="icon-button close-maintenance-modal" aria-label="关闭" type="button">×</button></div>
+        <form id="maintenance-form">
+          <label>关联设备<select id="maintenance-equipment" required></select></label>
+          <div class="form-row"><label>记录类型<select id="maintenance-type"><option value="repair">维修</option><option value="maintenance">保养</option></select></label><label>处理状态<select id="maintenance-status"><option value="open">待处理</option><option value="in_progress">处理中</option><option value="completed">已完成</option></select></label></div>
+          <div class="form-row"><label>记录日期<input id="maintenance-date" type="date" required /></label><label>费用（元）<input id="maintenance-cost" type="number" min="0" step="0.01" value="0" required /></label></div>
+          <label>说明<textarea id="maintenance-description" rows="4" maxlength="2000" placeholder="填写故障现象、处理内容或保养事项" required></textarea></label>
+          <div class="form-note"><span>i</span><span>待处理或处理中的记录会让设备自动进入维修中；全部相关记录完成后设备自动恢复可用。</span></div>
+          <div class="modal-actions"><button class="secondary-button close-maintenance-modal" type="button">取消</button><button class="primary-button" type="submit">保存记录 <span>→</span></button></div>
+        </form>
+      </section>
+    </div>
+
+    <div class="modal-backdrop" id="procurement-modal" aria-hidden="true" inert>
+      <section class="modal record-form-modal" role="dialog" aria-modal="true" aria-labelledby="procurement-modal-title">
+        <div class="modal-header"><div><p class="kicker">PROCUREMENT RECORD</p><h2 id="procurement-modal-title">新增采购记录</h2></div><button class="icon-button close-procurement-modal" aria-label="关闭" type="button">×</button></div>
+        <form id="procurement-form">
+          <label>关联设备<select id="procurement-equipment" required></select></label>
+          <div class="form-row"><label>供应商<input id="procurement-vendor" type="text" maxlength="200" placeholder="例如：设备供应商名称" required /></label><label>采购金额（元）<input id="procurement-amount" type="number" min="0" step="0.01" required /></label></div>
+          <div class="form-row"><label>采购日期<input id="procurement-date" type="date" required /></label><label>验收状态<select id="procurement-status"><option value="pending">待验收</option><option value="accepted">已验收</option><option value="rejected">验收未通过</option></select></label></div>
+          <label>备注<textarea id="procurement-notes" rows="4" maxlength="2000" placeholder="可填写采购事项、验收说明或入账备注"></textarea></label>
+          <div class="form-note"><span>i</span><span>保存后会立即汇总至采购金额，并显示在最近采购列表。</span></div>
+          <div class="modal-actions"><button class="secondary-button close-procurement-modal" type="button">取消</button><button class="primary-button" type="submit">保存记录 <span>→</span></button></div>
+        </form>
+      </section>
+    </div>
+
+    <div class="modal-backdrop" id="member-modal" aria-hidden="true" inert>
+      <section class="modal member-form-modal" role="dialog" aria-modal="true" aria-labelledby="member-modal-title">
+        <div class="modal-header"><div><p class="kicker">NEW MEMBER</p><h2 id="member-modal-title">新增成员账号</h2></div><button class="icon-button close-member-modal" aria-label="关闭" type="button">×</button></div>
+        <form id="member-form">
+          <div class="form-row"><label>姓名<input id="new-member-name" type="text" maxlength="50" placeholder="例如：王小明" required /></label><label>用户名<input id="new-member-username" type="text" minlength="2" maxlength="40" pattern="[a-z][a-z0-9]{1,39}" autocapitalize="none" placeholder="例如：xmwang" required /></label></div>
+          <div class="form-row"><label>账号角色<select id="new-member-role" required><option value="member">普通用户</option><option value="admin">系统管理员</option></select></label><label>所属实验室<select id="new-member-laboratory"></select></label></div>
+          <div class="form-note"><span>i</span><span>账号初始密码为 123456。成员首次登录后必须创建新密码，完成前不能进入业务系统。</span></div>
+          <p class="auth-error" id="member-form-error" role="alert" hidden></p>
+          <div class="modal-actions"><button class="secondary-button close-member-modal" type="button">取消</button><button class="primary-button" type="submit">创建账号 <span>→</span></button></div>
+        </form>
+      </section>
+    </div>
+
+    <div class="modal-backdrop" id="edit-member-modal" aria-hidden="true" inert>
+      <section class="modal member-form-modal" role="dialog" aria-modal="true" aria-labelledby="edit-member-modal-title">
+        <div class="modal-header"><div><p class="kicker">EDIT MEMBER</p><h2 id="edit-member-modal-title">编辑成员账号</h2></div><button class="icon-button close-edit-member-modal" aria-label="关闭" type="button">×</button></div>
+        <form id="edit-member-form">
+          <div class="form-row"><label>姓名<input id="edit-member-name" type="text" maxlength="50" required /></label><label>用户名<input id="edit-member-username" type="text" minlength="2" maxlength="40" pattern="[a-z][a-z0-9]{1,39}" autocapitalize="none" required /></label></div>
+          <div class="form-row"><label>权限等级<select id="edit-member-role" required><option value="developer">开发者</option><option value="admin">系统管理员</option><option value="member">普通用户</option></select></label><label>所属实验室<select id="edit-member-laboratory"></select></label></div>
+          <div class="form-note"><span>i</span><span>权限变更会立即作用于该成员已有会话。开发者权限不能通过此表单授予，账号也不能修改自己的权限等级。</span></div>
+          <p class="auth-error" id="edit-member-form-error" role="alert" hidden></p>
+          <div class="modal-actions"><button class="secondary-button close-edit-member-modal" type="button">取消</button><button class="primary-button" type="submit">保存修改 <span>→</span></button></div>
+        </form>
+      </section>
+    </div>
+
+    <div class="modal-backdrop" id="reset-password-modal" aria-hidden="true" inert>
+      <section class="modal reset-password-modal" role="dialog" aria-modal="true" aria-labelledby="reset-password-modal-title">
+        <div class="modal-header"><div><p class="kicker">RESET PASSWORD</p><h2 id="reset-password-modal-title">重置成员密码</h2></div><button class="icon-button close-reset-password-modal" aria-label="关闭" type="button">×</button></div>
+        <form id="reset-password-form">
+          <div class="reset-member-summary"><span class="avatar avatar-slate" id="reset-member-avatar">成</span><div><strong id="reset-member-name">成员账号</strong><small id="reset-member-username">username</small></div></div>
+          <div class="form-note reset-warning"><span>!</span><span>重置后会生成一次性临时密码。该成员当前所有登录会话会立即失效，下次登录必须重新创建密码。</span></div>
+          <div class="temporary-password" id="temporary-password" hidden><span>临时密码</span><code id="temporary-password-value"></code><button class="text-button" id="copy-temporary-password" type="button">复制</button></div>
+          <p class="auth-error" id="reset-password-error" role="alert" hidden></p>
+          <div class="modal-actions"><button class="secondary-button close-reset-password-modal" type="button">取消</button><button class="danger-button" type="submit">确认重置</button></div>
+        </form>
+      </section>
+    </div>
+
+    <div class="drawer-backdrop" id="equipment-drawer" aria-hidden="true" inert>
+      <aside class="detail-drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-equipment-name">
+        <header class="drawer-header"><div class="drawer-title"><span class="equipment-thumb thumb-orange" id="drawer-icon">◌</span><div><p class="kicker">EQUIPMENT PROFILE</p><h2 id="drawer-equipment-name">设备详情</h2><span id="drawer-equipment-code">尚未选择设备</span></div></div><button class="icon-button close-drawer" aria-label="关闭设备详情" type="button">×</button></header>
+        <div class="drawer-body">
+          <div class="drawer-status-row"><span class="status-badge status-available" id="drawer-status">未选择</span><span>状态可在下方修改</span></div>
+          <section class="drawer-section"><h3>基本信息</h3><div class="detail-grid"><div><span>所在实验室</span><strong id="drawer-lab">—</strong></div><div><span>设备保管人</span><strong id="drawer-owner">—</strong></div><div><span>共享方式</span><strong>预约后使用</strong></div></div></section>
+          <section class="drawer-section"><h3>设备状态</h3><form class="equipment-status-form" id="equipment-status-form"><label>当前状态<select id="drawer-status-select" required><option value="available">可用</option><option value="maintenance">维修中</option><option value="disabled">已停用</option><option value="retired">已报废</option></select></label><button class="secondary-button" type="submit">保存状态</button><small>预约占用以日历为准；维修中、已停用和已报废的设备不接受新预约，既有记录仍会保留。</small></form></section>
+          <section class="drawer-section"><h3>性能指标</h3><div class="spec-block"><span id="drawer-metric">—</span><small>详细技术参数、说明书和附件将在设备录入后展示。</small></div></section>
+          <section class="drawer-section"><h3>近期动态</h3><div class="drawer-activity-list" id="drawer-activity-list"></div></section>
+        </div>
+        <footer class="drawer-footer"><button class="danger-button" id="remove-equipment" type="button">移除设备</button><span class="drawer-footer-spacer"></span><button class="secondary-button" id="edit-equipment" type="button">编辑信息</button><button class="secondary-button" id="view-equipment-calendar" type="button">查看日历</button><button class="primary-button" id="reserve-from-drawer" type="button">预约此设备 <span>→</span></button></footer>
+      </aside>
+    </div>
+
+    <div class="modal-backdrop guide-backdrop" id="guide-modal" aria-hidden="true" inert>
+      <section class="guide-dialog" role="dialog" aria-modal="true" aria-labelledby="guide-title">
+        <header class="guide-header">
+          <div>
+            <p class="kicker">CIPC LABEQUIP HUB</p>
+            <h2 id="guide-title">使用指南</h2>
+            <p>设备查询、预约与数据管理说明</p>
+          </div>
+          <button class="icon-button close-guide-modal" aria-label="关闭使用指南" type="button">×</button>
+        </header>
+        <div class="guide-layout">
+          <nav class="guide-nav" aria-label="使用指南目录" role="tablist">
+            <button class="guide-tab active" id="guide-tab-start" data-guide-section="start" role="tab" aria-selected="true" aria-controls="guide-panel-start" type="button"><span>01</span><b id="guide-role-tab-label">开发者指南</b></button>
+            <button class="guide-tab" id="guide-tab-equipment" data-guide-section="equipment" role="tab" aria-selected="false" aria-controls="guide-panel-equipment" tabindex="-1" type="button"><span>02</span>设备台账</button>
+            <button class="guide-tab" id="guide-tab-reservation" data-guide-section="reservation" role="tab" aria-selected="false" aria-controls="guide-panel-reservation" tabindex="-1" type="button"><span>03</span>资源预约</button>
+            <button class="guide-tab" id="guide-tab-records" data-guide-section="records" role="tab" aria-selected="false" aria-controls="guide-panel-records" tabindex="-1" type="button"><span>04</span>维修与记录</button>
+            <button class="guide-tab" id="guide-tab-access" data-guide-section="access" role="tab" aria-selected="false" aria-controls="guide-panel-access" tabindex="-1" type="button"><span>05</span>数据与权限</button>
+            <button class="guide-tab" id="guide-tab-faq" data-guide-section="faq" role="tab" aria-selected="false" aria-controls="guide-panel-faq" tabindex="-1" type="button"><span>06</span>常见问题</button>
+          </nav>
+
+          <div class="guide-content">
+            <section class="guide-panel active" id="guide-panel-start" data-guide-panel="start" role="tabpanel" aria-labelledby="guide-tab-start">
+              <div id="guide-role-content"></div>
+            </section>
+
+            <section class="guide-panel" id="guide-panel-equipment" data-guide-panel="equipment" role="tabpanel" aria-labelledby="guide-tab-equipment" hidden>
+              <p class="guide-eyebrow">EQUIPMENT DIRECTORY</p>
+              <h3>设备台账</h3>
+              <p class="guide-lead">台账集中展示设备名称、资产编号、性能指标、所在实验室、保管人和共享状态。</p>
+              <h4>查询和查看详情</h4>
+              <ul><li>使用顶部搜索框输入设备名称、资产编号、性能指标、实验室或保管人。</li><li>点击每行右侧的更多按钮打开设备详情，可编辑基本信息、修改状态或继续发起预约。</li><li>总览页可按全部、可用和维修中快速筛选；预约占用请查看预约日历。</li></ul>
+              <h4>新增设备</h4>
+              <ol><li>点击“新增设备”。</li><li>填写名称、资产编号、性能指标、所在实验室、保管人和初始状态。</li><li>保存后检查台账和总览统计是否更新。</li></ol>
+              <div class="guide-note"><strong>状态管理</strong><p>设备详情支持切换可用、维修中、已停用和已报废；预约不是设备状态，具体占用时段以预约日历为准。</p></div>
+            </section>
+
+            <section class="guide-panel" id="guide-panel-reservation" data-guide-panel="reservation" role="tabpanel" aria-labelledby="guide-tab-reservation" hidden>
+              <p class="guide-eyebrow">RESERVATION</p>
+              <h3>设备与会议室预约</h3>
+              <ol class="guide-steps compact">
+                <li><span>1</span><div><strong>发起预约</strong><p>从总览、预约日历、会议室预约页或设备详情点击预约按钮。</p></div></li>
+                <li><span>2</span><div><strong>选择资源</strong><p>在统一弹窗选择设备或会议室，再填写日期、开始时间、结束时间、人数与用途。</p></div></li>
+                <li><span>3</span><div><strong>处理冲突</strong><p>同一设备或会议室的时段不能重叠；会议室人数需符合预约要求。</p></div></li>
+                <li><span>4</span><div><strong>核对结果</strong><p>全局概览汇总每日预约，单项资源日历用于检查某台设备或会议室的完整排期。</p></div></li>
+              </ol>
+              <div class="guide-note"><strong>预约已生效</strong><p>提交成功后预约立即生效。预约开始前，你可在总览的今日安排中取消自己的预约；开发者账号可在调试时取消任意尚未开始的预约。</p></div>
+              <h4>日历说明</h4>
+              <ul><li>彩色区块表示设备和会议室预约时段，维修中的设备显示暂停预约。</li><li>使用上一周、下一周和今天按钮切换周范围；月视图用于浏览整月占用，单项资源视图用于核对完整排期。</li></ul>
+            </section>
+
+            <section class="guide-panel" id="guide-panel-records" data-guide-panel="records" role="tabpanel" aria-labelledby="guide-tab-records" hidden>
+              <p class="guide-eyebrow">SERVICE & RECORDS</p>
+              <h3 id="guide-records-heading">维修、保养与采购记录</h3>
+              <p class="guide-lead" id="guide-records-lead">所有成员都可查询并新增维修、保养和采购记录，保存后会立即同步到业务列表。</p>
+              <div class="guide-definition-list">
+                <div><strong>维修与保养</strong><p>选择设备、记录类型、状态、日期、费用和处理说明；处理完成后可作为设备维护依据。</p><span>当前：可新增、可查询</span></div>
+                <div><strong>采购记录</strong><p>关联设备并记录供应商、金额、采购日期、验收状态和备注；页面自动汇总已录入金额。</p><span>当前：可新增、可查询</span></div>
+                <div class="guide-admin-only"><strong>导入与导出</strong><p>批量写入和文件导出尚待实现。</p><span>当前：后续功能</span></div>
+              </div>
+              <div class="guide-note"><strong>录入建议</strong><p>每次处理或验收完成后及时补全日期、费用和说明；附件、批量导入和导出将作为后续迭代功能。</p></div>
+            </section>
+
+            <section class="guide-panel" id="guide-panel-access" data-guide-panel="access" role="tabpanel" aria-labelledby="guide-tab-access" hidden>
+              <p class="guide-eyebrow">DATA & ACCESS</p>
+              <h3>数据与权限边界</h3>
+              <div class="guide-definition-list">
+                <div><strong>身份认证</strong><p>系统只允许管理员预先创建的账号登录，不开放自主注册。</p><span>会话登录</span></div>
+                <div><strong>首次改密</strong><p>初始密码只用于第一次登录，进入业务系统前必须创建新密码。</p><span>强制执行</span></div>
+                <div><strong>权限边界</strong><p>开发者可模拟开发者、管理员和普通用户视图；其他账号按服务端角色显示对应功能。</p><span>服务端校验</span></div>
+              </div>
+              <div class="guide-note warning"><strong>重要提醒</strong><p>系统已记录关键业务操作并提供一致性备份工具；正式资料仍需遵循实验室数据管理规范，不应只保留在单一系统中。</p></div>
+              <h4>当前权限页面</h4>
+              <p>开发者和系统管理员可创建账号，修改成员姓名、用户名、权限等级和实验室，并重置其他成员密码。新账号和被重置账号首次登录必须修改初始密码。</p>
+            </section>
+
+            <section class="guide-panel" id="guide-panel-faq" data-guide-panel="faq" role="tabpanel" aria-labelledby="guide-tab-faq" hidden>
+              <p class="guide-eyebrow">FAQ</p>
+              <h3>常见问题</h3>
+              <div class="guide-faq">
+                <details open><summary>为什么首次登录后不能直接进入系统？</summary><p>所有预置账号必须先修改初始密码。新密码需要至少 8 个字符，并同时包含字母和数字。</p></details>
+                <details><summary>预约冲突后该怎么处理？</summary><p>查看提示中的已占用时间，关闭弹窗后在预约日历选择不重叠的时段，再重新提交。</p></details>
+                <details><summary>提交预约后何时生效？</summary><p>预约提交成功后立即生效，并按时间显示为未开始、使用中或已完成。尚未开始的本人预约可从今日安排中取消。</p></details>
+                <details><summary>成员账号可以由谁创建？</summary><p>开发者和系统管理员可在成员与权限页面创建账号；普通用户没有该入口。</p></details>
+                <details><summary>可以自行注册新账号吗？</summary><p>不可以。系统不提供注册入口，账号由管理员统一创建和分配。</p></details>
+              </div>
+            </section>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="modal-backdrop" id="self-password-modal" aria-hidden="true" inert>
+      <section class="modal self-password-modal" role="dialog" aria-modal="true" aria-labelledby="self-password-modal-title">
+        <div class="modal-header"><div><p class="kicker">ACCOUNT SECURITY</p><h2 id="self-password-modal-title">修改密码</h2></div><button class="icon-button close-self-password-modal" aria-label="关闭修改密码" type="button">×</button></div>
+        <form id="self-password-form">
+          <label>当前密码<input id="self-current-password" name="current-password" type="password" autocomplete="current-password" required /></label>
+          <label>新密码<input id="self-new-password" name="new-password" type="password" autocomplete="new-password" minlength="8" maxlength="128" required /></label>
+          <label>确认新密码<input id="self-confirm-password" name="confirm-password" type="password" autocomplete="new-password" minlength="8" maxlength="128" required /></label>
+          <small class="form-help">新密码需为 8-128 个字符，并同时包含字母和数字。</small>
+          <p class="auth-error" id="self-password-error" role="alert" hidden></p>
+          <div class="modal-actions"><button class="secondary-button close-self-password-modal" type="button">取消</button><button class="primary-button" type="submit">保存新密码 <span>→</span></button></div>
+        </form>
+      </section>
+    </div>
+    <div class="toast" id="toast" role="status"><span class="toast-check">✓</span><span id="toast-message"></span></div>
+    <script src="./app.js?v=1.3.0"></script>
+  </body>
+</html>

@@ -1,0 +1,11 @@
+[Unit]
+Description=Run CIPC LabEquip Hub operations check periodically
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=15min
+Unit=cipc-labequip-operations.service
+AccuracySec=1min
+
+[Install]
+WantedBy=timers.target

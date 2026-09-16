@@ -1,0 +1,20 @@
+[Unit]
+Description=CIPC LabEquip Hub operations check
+After=cipc-labequip-api.service
+
+[Service]
+Type=oneshot
+User=cipc-labequip
+Group=cipc-labequip
+WorkingDirectory=/opt/cipc-labequip/current
+Environment=API_HEALTH_URL=http://127.0.0.1:4000/api/health
+Environment=DATA_FILE=/var/lib/cipc-labequip/data/production.sqlite
+Environment=BACKUP_DIR=/var/lib/cipc-labequip/backups
+ExecStart=/usr/local/bin/node scripts/operations-check.mjs --max-backup-age-hours 36 --min-free-mb 1024
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/cipc-labequip/data
+ReadOnlyPaths=/var/lib/cipc-labequip/backups

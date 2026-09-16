@@ -1,0 +1,11 @@
+[Unit]
+Description=Run the CIPC LabEquip Hub database backup daily
+
+[Timer]
+OnCalendar=*-*-* 03:15:00 Asia/Shanghai
+RandomizedDelaySec=30m
+Persistent=true
+Unit=cipc-labequip-backup.service
+
+[Install]
+WantedBy=timers.target

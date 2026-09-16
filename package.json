@@ -1,0 +1,26 @@
+{
+  "name": "cipc-labequip-hub",
+  "version": "1.3.0",
+  "private": true,
+  "description": "CIPC Laboratory Equipment Sharing & Reservation Platform",
+  "packageManager": "pnpm@11.9.0",
+  "engines": {
+    "node": ">=22 <25",
+    "pnpm": ">=9 <12"
+  },
+  "scripts": {
+    "env:check": "node scripts/check-env.mjs",
+    "dev": "node scripts/dev.mjs",
+    "dev:web": "node scripts/dev-web.mjs",
+    "dev:api": "node apps/api/server.mjs",
+    "test": "node --test apps/api/test/*.test.mjs apps/web/test/*.test.mjs scripts/test/*.test.mjs",
+    "check": "node --check apps/api/server.mjs && node --check apps/api/lib/database.mjs && node --check apps/api/lib/service.mjs && node --check apps/web/app.js && pnpm test",
+    "backup:db": "node scripts/backup-db.mjs",
+    "bootstrap:admin": "node scripts/bootstrap-admin.mjs",
+    "restore:drill": "node scripts/restore-drill.mjs",
+    "operations:check": "node scripts/operations-check.mjs",
+    "infra:up": "docker compose up -d postgres minio mailpit",
+    "infra:down": "docker compose down",
+    "infra:logs": "docker compose logs -f"
+  }
+}
