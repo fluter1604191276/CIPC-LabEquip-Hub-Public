@@ -30,3 +30,10 @@ sudo systemctl status cipc-labequip-api.service --no-pager
 sudo systemctl status cipc-labequip-upgrade.path --no-pager
 cat /var/lib/cipc-labequip/data/upgrade/status.json
 ```
+
+## 公网生产回执
+
+- 2026-09-18 23:57（北京时间）完成公网生产切换。
+- 生产 release：`/opt/cipc-labequip/releases/20260918T155435Z-v1.4.7-manual-v`。
+- API `/api/health`、Web `/healthz`、Docker Web 容器和升级 path 均正常。
+- 升级前 SQLite 快照已保留；上一代码 release 为 v1.4.5。
