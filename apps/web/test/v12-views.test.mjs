@@ -130,8 +130,7 @@ test("help guide is detailed and the update center exposes manual upgrade instru
 });
 
 
-test("real developers keep the upgrade channel while simulating business roles", () => {
-  assert.match(app, /const visibleViews = new Set\(definition\.views\)/);
-  assert.match(app, /if \(actualRole === "developer"\) visibleViews\.add\("update"\)/);
-  assert.match(app, /visibleViews\.has\(activeView\)/);
+test("upgrade channel follows the selected developer simulation view", () => {
+  assert.match(app, /button\.hidden = !definition\.views\.includes\(button\.dataset\.view\)/);
+  assert.match(app, /if \(!definition\.views\.includes\(activeView\)/);
 });

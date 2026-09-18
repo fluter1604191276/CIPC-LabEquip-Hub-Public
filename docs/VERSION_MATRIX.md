@@ -7,14 +7,14 @@
 | 位置 | 版本 | 说明 |
 | --- | --- | --- |
 | 原公网生产环境 | `v1.4.0` | v1.4.1 升级请求于 2026-09-18 17:21 通过测试后在 release 切换阶段因 EXDEV 失败；生产安全保持 v1.4.0，v1.4.2 已修复。 |
-| 内部历史仓库 `CIPC-LabEquip-Hub` | `v1.4.3` 开发发布 | 保留历史追溯，仓库维持 Private。 |
-| 公开部署仓库 `CIPC-LabEquip-Hub-Public` | `v1.4.3` 待发布 | 修复开发者模拟视图隐藏升级入口的问题。 |
+| 内部历史仓库 `CIPC-LabEquip-Hub` | `v1.4.4` 开发发布 | 保留历史追溯，仓库维持 Private。 |
+| 公开部署仓库 `CIPC-LabEquip-Hub-Public` | `v1.4.4` 待发布 | 回退开发者模拟视图下始终显示升级入口的行为。 |
 | 学校机房已部署环境 | 用户报告已部署；此前发布为 `v1.3.0` | 本轮未连接或升级学校主机；实际运行版本由校方确认。 |
 
 老师应固定使用发布标签：
 
 ```bash
-git clone --branch v1.4.3 --depth 1 \
+git clone --branch v1.4.4 --depth 1 \
   https://github.com/fluter1604191276/CIPC-LabEquip-Hub-Public.git \
   /opt/cipc-labequip/current
 ```
