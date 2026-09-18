@@ -20,3 +20,11 @@
 ## 部署
 
 首次启用请安装对应的 `cipc-labequip-upgrade.service` 与 `.path`，详见 `deploy/lan/README.md` 和 `docs/RELEASE_AND_MIGRATION.md`。
+
+## 公网生产回执
+
+- 2026-09-18 16:32（北京时间）完成公网生产升级。
+- 生产 release：`20260918T-v1.4.0-4f2a80c`。
+- 升级前数据库快照已保存，切换前后业务表数量一致，数据库完整性检查通过。
+- API、Web、升级 path 服务和运维检查均正常；公网静态资源与 v1.4.0 发布包哈希一致。
+- v1.3.1 release 保留作为代码回滚版本。
