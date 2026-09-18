@@ -1238,7 +1238,12 @@ function applyRoleView(role, announce = false) {
     option.setAttribute("aria-pressed", String(active));
   });
 
-  document.querySelectorAll(".nav-item[data-view]").forEach((button) => { button.hidden = !definition.views.includes(button.dataset.view); });
+  const visibleViews = new Set(definition.views);
+  // The upgrade channel is protected by the real server role, not the
+  // developer's simulated business view. Keep it visible for real developers
+  // so switching to admin/member simulation cannot hide the maintenance tool.
+  if (actualRole === "developer") visibleViews.add("update");
+  document.querySelectorAll(".nav-item[data-view]").forEach((button) => { button.hidden = !visibleViews.has(button.dataset.view); });
   document.querySelector(".secondary-nav").hidden = !definition.views.some((view) => ["records", "members"].includes(view));
   const canManageEquipment = ["developer", "admin", "member"].includes(role);
   const canManageMembers = ["developer", "admin"].includes(role);
@@ -1248,7 +1253,7 @@ function applyRoleView(role, announce = false) {
   document.querySelector(".directory-actions").hidden = !canManageEquipment;
 
   const activeView = document.querySelector(".nav-item.active")?.dataset.view;
-  if (!definition.views.includes(activeView)) document.querySelector('[data-view="overview"]').click();
+  if (!visibleViews.has(activeView)) document.querySelector('[data-view="overview"]').click();
   renderAccessData();
   renderUpcoming();
   renderMeetingRooms();

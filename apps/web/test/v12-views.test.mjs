@@ -128,3 +128,10 @@ test("help guide is detailed and the update center exposes manual upgrade instru
   assert.match(html, /升级期间页面可能短暂无法访问/);
   assert.match(app, /navigator\.clipboard\.writeText\(command\)/);
 });
+
+
+test("real developers keep the upgrade channel while simulating business roles", () => {
+  assert.match(app, /const visibleViews = new Set\(definition\.views\)/);
+  assert.match(app, /if \(actualRole === "developer"\) visibleViews\.add\("update"\)/);
+  assert.match(app, /visibleViews\.has\(activeView\)/);
+});
