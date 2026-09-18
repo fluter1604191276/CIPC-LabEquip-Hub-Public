@@ -4408,3 +4408,7 @@ button:disabled {
 .update-steps { margin:10px 0 0; padding-left:22px; color:#697483; line-height:2; }
 .update-notes-card pre { white-space:pre-wrap; color:#697483; font:inherit; line-height:1.7; min-height:120px; }
 @media (max-width:760px) { .update-grid { grid-template-columns:1fr; } .update-summary-card, .update-task-card, .update-notes-card { padding:18px; } }
+
+.update-manual-card { padding:24px; margin-top:18px; }
+.update-manual-card pre { white-space:pre-wrap; overflow:auto; padding:14px; border-radius:8px; background:#1f2937; color:#f3f4f6; font:12px/1.7 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.update-manual-card .panel-heading { align-items:center; }

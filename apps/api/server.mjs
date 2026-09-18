@@ -1,6 +1,7 @@
 import { createServer } from "node:http";
 import { fileURLToPath } from "node:url";
-import { resolve } from "node:path";
+import { resolve, dirname } from "node:path";
+import { readFileSync } from "node:fs";
 import { createDatabase } from "./lib/database.mjs";
 import { AppError, createService } from "./lib/service.mjs";
 import { createUpdateManager } from "./lib/update.mjs";
@@ -465,6 +466,15 @@ export function createApp(service, {
   });
 }
 
+function resolveAppVersion(fallback = "0.0.0") {
+  try {
+    const packageFile = resolve(process.cwd(), "package.json");
+    return JSON.parse(readFileSync(packageFile, "utf8")).version || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export function startServer({
   dataFile = process.env.DATA_FILE ? resolve(process.env.DATA_FILE) : defaultDataFile,
   port = Number(process.env.API_PORT || 4000),
@@ -474,7 +484,7 @@ export function startServer({
   const service = createService(database);
   const updateManager = process.env.UPDATE_ENABLED === "true" ? createUpdateManager({
     repository: process.env.UPDATE_REPOSITORY,
-    currentVersion: process.env.APP_VERSION || "1.4.0",
+    currentVersion: resolveAppVersion(process.env.APP_VERSION || "1.4.1"),
     requestFile: process.env.UPDATE_REQUEST_FILE || "/var/lib/cipc-labequip/data/upgrade/request.json",
     statusFile: process.env.UPDATE_STATUS_FILE || "/var/lib/cipc-labequip/data/upgrade/status.json"
   }) : null;

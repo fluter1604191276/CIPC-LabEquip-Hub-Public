@@ -94,7 +94,8 @@ test("laboratory management is manager-only and the public shell has no visible 
   assert.match(app, /editingLaboratory \? `\/laboratories\//);
   assert.match(app, /data-laboratory-id/);
   assert.match(app, /const canManageLaboratories = \["developer", "admin"\]\.includes\(currentRole\)/);
-  assert.doesNotMatch(html, /CIPC|cipc/i);
+  const publicShell = html.replace(/<pre id="update-manual-command">[\s\S]*?<\/pre>/, "");
+  assert.doesNotMatch(publicShell, /<title>[^<]*(?:CIPC|cipc)|auth-brand-lockup[\s\S]{0,200}(?:CIPC|cipc)|brand-lockup[\s\S]{0,200}(?:CIPC|cipc)/i);
 });
 
 test("laboratory saves reload derived data and retain legacy equipment assignments", () => {
@@ -116,4 +117,14 @@ test("developer-only update center has check and apply controls", () => {
   assert.match(app, /apiRequest\("\/update\/check"\)/);
   assert.match(app, /apiRequest\("\/update", \{ method: "POST"/);
   assert.match(app, /update: "系统升级"/);
+});
+
+
+test("help guide is detailed and the update center exposes manual upgrade instructions", () => {
+  assert.match(html, /id="guide-panel-upgrade"/);
+  assert.match(html, /id="update-manual-command"/);
+  assert.match(html, /id="update-manual-copy"/);
+  assert.match(app, /guide-developer-only/);
+  assert.match(html, /升级期间页面可能短暂无法访问/);
+  assert.match(app, /navigator\.clipboard\.writeText\(command\)/);
 });

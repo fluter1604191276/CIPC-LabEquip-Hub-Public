@@ -4,15 +4,15 @@ const reservationStatusLabels = { approved: "未开始", in_use: "使用中", co
 const viewMap = { overview: "overview-view", equipment: "equipment-view", calendar: "calendar-view-page", "my-reservations": "my-reservations-view", "meeting-rooms": "meeting-rooms-view", maintenance: "maintenance-view", records: "records-view", members: "members-view", audit: "audit-view", update: "update-view" };
 const viewLabels = { overview: "总览", equipment: "设备台账", calendar: "预约日历", "my-reservations": "我的预约", "meeting-rooms": "会议室预约", maintenance: "维修与保养", records: "采购记录", members: "成员与权限", audit: "操作审计", update: "系统升级" };
 const roleDefinitions = {
-  developer: { label: "开发者权限", avatar: "D", views: ["overview", "calendar", "my-reservations", "meeting-rooms", "equipment", "maintenance", "records", "members", "audit", "update"], guideSections: ["start", "equipment", "reservation", "records", "access", "faq"] },
+  developer: { label: "开发者权限", avatar: "D", views: ["overview", "calendar", "my-reservations", "meeting-rooms", "equipment", "maintenance", "records", "members", "audit", "update"], guideSections: ["start", "equipment", "reservation", "records", "access", "upgrade", "faq"] },
   admin: { label: "系统管理员", avatar: "管", views: ["overview", "calendar", "my-reservations", "meeting-rooms", "equipment", "maintenance", "records", "members", "audit"], guideSections: ["start", "equipment", "reservation", "records", "access", "faq"] },
   member: { label: "普通用户", avatar: "用", views: ["overview", "calendar", "my-reservations", "meeting-rooms", "equipment", "maintenance", "records"], guideSections: ["start", "equipment", "reservation", "records", "faq"] }
 };
 const roleGuideContent = {
-  developer: `<p class="guide-eyebrow">DEVELOPER VIEW</p><h3>开发者权限指南</h3><p class="guide-lead">账号身份固定为开发者，可在左下角模拟管理员和普通用户视图，核对导航、业务入口和指南内容。</p><div class="guide-status-list"><div><span class="pill-dot green"></span><strong>完整测试权限</strong><p>可查看全部页面，并保留权限视图切换入口。</p></div><div><span class="pill-dot orange"></span><strong>前端模拟边界</strong><p>角色切换只用于界面验收，不替代正式登录和服务端鉴权。</p></div></div><ol class="guide-steps"><li><span>1</span><div><strong>选择测试角色</strong><p>从左下角切换管理员和普通用户视图。</p></div></li><li><span>2</span><div><strong>核对权限入口</strong><p>确认业务页面、新增设备和成员管理入口符合角色职责。</p></div></li><li><span>3</span><div><strong>验证高风险操作</strong><p>测试含历史设备的强制删除时，必须显示关联记录数量并经过二次确认。</p></div></li></ol><div class="guide-actions"><button class="secondary-button guide-view-link" data-target-view="members" type="button">查看权限页面</button><button class="primary-button guide-view-link" data-target-view="calendar" type="button">检查预约日历 <span>→</span></button></div>`,
-  admin: `<p class="guide-eyebrow">ADMIN VIEW</p><h3>系统管理员指南</h3><p class="guide-lead">负责设备台账、实验室记录、维修保养、采购信息和成员账号的整体维护。</p><ol class="guide-steps"><li><span>1</span><div><strong>维护设备台账</strong><p>新增设备，核对资产编号、所在实验室、保管人和共享状态。</p></div></li><li><span>2</span><div><strong>登记业务记录</strong><p>录入维修、保养和采购记录，持续更新处理及验收状态。</p></div></li><li><span>3</span><div><strong>核对成员账号</strong><p>在成员与权限页面检查已创建账号、角色和实验室基础信息。</p></div></li></ol><div class="guide-note warning"><strong>强制删除设备</strong><p>含历史记录的设备仅可在核对预约、维修和采购数量并二次确认后删除；设备及全部关联记录会永久移除。</p></div><div class="guide-actions"><button class="secondary-button guide-view-link" data-target-view="maintenance" type="button">登记维修保养</button><button class="primary-button guide-view-link" data-target-view="members" type="button">查看成员权限 <span>→</span></button></div>`,
-  member: `<p class="guide-eyebrow">MEMBER VIEW</p><h3>普通用户指南</h3><p class="guide-lead">可查询和新增设备、预约设备或会议室，并访问维修保养与采购记录。</p><ol class="guide-steps"><li><span>1</span><div><strong>查找或新增设备</strong><p>按设备名称、资产编号、实验室或保管人检索；需要时可新增设备。</p></div></li><li><span>2</span><div><strong>预约资源</strong><p>在统一预约弹窗选择设备或会议室，填写时间、人数和用途。</p></div></li><li><span>3</span><div><strong>查看业务记录</strong><p>从维修与保养、采购记录页面进入对应业务入口。</p></div></li></ol><div class="guide-note"><strong>预约已生效</strong><p>提交成功后预约立即生效，可在总览的今日安排中取消尚未开始的本人预约。</p></div><div class="guide-actions"><button class="secondary-button guide-view-link" data-target-view="meeting-rooms" type="button">预约会议室</button><button class="primary-button guide-view-link" data-target-view="calendar" type="button">查看预约日历 <span>→</span></button></div>`
-};
+  developer: `<p class="guide-eyebrow">DEVELOPER VIEW</p><h3>开发者工作指南</h3><p class="guide-lead">开发者负责版本发布、升级验证、权限边界检查和高风险数据操作。日常使用建议遵循“先检查、再备份、后操作”的顺序。</p><div class="guide-status-list"><div><span class="pill-dot green"></span><strong>日常巡检</strong><p>登录后查看总览、业务提醒、系统升级状态和操作审计，确认 API 与页面数据正常。</p></div><div><span class="pill-dot orange"></span><strong>模拟视图</strong><p>左下角角色切换只改变界面展示，不会改变真实服务端权限；测试完成后切回开发者视图。</p></div><div><span class="pill-dot blue"></span><strong>升级纪律</strong><p>正式发布前必须通过测试；升级前确认备份成功，升级后检查 API、Web、数据库和定时任务。</p></div></div><ol class="guide-steps"><li><span>1</span><div><strong>检查系统状态</strong><p>查看总览数据、操作审计和系统升级页；发现网络错误时先刷新，不要连续重复提交。</p></div></li><li><span>2</span><div><strong>验证业务变更</strong><p>新增或编辑实验室、设备、会议室和成员后，检查下拉选项、列表、审计记录是否同步。</p></div></li><li><span>3</span><div><strong>执行版本升级</strong><p>在系统升级页检查稳定版，阅读版本说明后点击升级；若升级服务不可用，使用页面提供的手动命令。</p></div></li><li><span>4</span><div><strong>保留回滚证据</strong><p>记录升级版本、时间、数据库快照和上一 release 路径；数据恢复与代码回滚分开处理。</p></div></li></ol><div class="guide-note warning"><strong>高风险操作</strong><p>强制删除设备、重置密码、修改成员角色和停用实验室前，先核对对象、关联记录和备份状态。</p></div><div class="guide-actions"><button class="secondary-button guide-view-link" data-target-view="update" type="button">打开系统升级</button><button class="primary-button guide-view-link" data-target-view="audit" type="button">查看操作审计 <span>→</span></button></div>`,
+  admin: `<p class="guide-eyebrow">ADMIN VIEW</p><h3>系统管理员工作指南</h3><p class="guide-lead">系统管理员负责日常资源和成员维护，不负责发布代码。所有修改都会写入操作审计，建议按业务流程逐项核对。</p><div class="guide-status-list"><div><span class="pill-dot green"></span><strong>资源维护</strong><p>维护实验室、空间、设备、会议室、维修保养和采购记录。</p></div><div><span class="pill-dot blue"></span><strong>成员维护</strong><p>创建成员、分配实验室、调整普通用户与管理员角色、重置其他成员密码。</p></div><div><span class="pill-dot orange"></span><strong>变更留痕</strong><p>完成批量或重要修改后，进入操作审计确认记录已经生成。</p></div></div><ol class="guide-steps"><li><span>1</span><div><strong>先维护空间</strong><p>在实验室与空间中确认名称、编号、别名、排序和启用状态，再新增设备或成员。</p></div></li><li><span>2</span><div><strong>再维护资源</strong><p>新增设备时填写唯一资产编号；会议室停用前确认没有未结束预约。</p></div></li><li><span>3</span><div><strong>最后维护账号</strong><p>新账号使用初始密码首次登录后必须改密；临时密码只通过受控渠道交付。</p></div></li><li><span>4</span><div><strong>完成后核对</strong><p>刷新台账、成员和日历，检查关联实验室名称是否正确。</p></div></li></ol><div class="guide-note warning"><strong>删除与重置</strong><p>含历史记录的设备只有在确认关联数量和备份状态后才执行强制删除；密码重置会使旧会话失效。</p></div><div class="guide-actions"><button class="secondary-button guide-view-link" data-target-view="members" type="button">维护成员与空间</button><button class="primary-button guide-view-link" data-target-view="equipment" type="button">查看设备台账 <span>→</span></button></div>`,
+  member: `<p class="guide-eyebrow">MEMBER VIEW</p><h3>普通用户工作指南</h3><p class="guide-lead">普通用户可以查询资源、录入业务记录和创建预约。提交前请认真核对时间、用途、实验室和设备编号。</p><div class="guide-status-list"><div><span class="pill-dot green"></span><strong>可以做什么</strong><p>查询设备与会议室，新增设备、维修保养和采购记录，创建或取消自己的预约。</p></div><div><span class="pill-dot orange"></span><strong>需要联系管理员</strong><p>忘记密码、账号信息错误、实验室分配错误、资源停用和预约冲突协调。</p></div></div><ol class="guide-steps"><li><span>1</span><div><strong>登录并改密</strong><p>首次登录或密码重置后先设置新密码，离开公共电脑前点击退出。</p></div></li><li><span>2</span><div><strong>查询资源</strong><p>使用名称、资产编号、指标、实验室或保管人搜索；点击设备行查看详情。</p></div></li><li><span>3</span><div><strong>创建预约</strong><p>选择设备或会议室，填写日期、时间、人数和用途；冲突时根据提示调整时段。</p></div></li><li><span>4</span><div><strong>补全业务记录</strong><p>维修、保养和采购记录应写清日期、费用、供应商和处理说明，便于后续追溯。</p></div></li></ol><div class="guide-note"><strong>预约已生效</strong><p>提交成功后预约立即生效。预约开始前可以取消本人预约，开始后请联系管理员协调。</p></div><div class="guide-actions"><button class="secondary-button guide-view-link" data-target-view="equipment" type="button">查看设备台账</button><button class="primary-button guide-view-link" data-target-view="calendar" type="button">查看预约日历 <span>→</span></button></div>`
+}
 const currentDate = localDate(new Date());
 
 let equipment = [];
@@ -923,6 +923,12 @@ function renderUpdateCenter() {
   button.textContent = updateStatus?.state === "running" ? "升级执行中…" : updateStatus?.state === "queued" ? "升级任务已排队" : "备份并升级";
   status.textContent = updateStatus?.message || "暂无升级任务";
   document.querySelector("#update-release-notes").textContent = updateInfo?.releaseNotes || "暂无更新说明";
+  const manualVersion = updateInfo?.latestVersion || "1.4.1";
+  document.querySelector("#update-manual-command").textContent = `VERSION=v${manualVersion}
+cd /opt/cipc-labequip/current
+git fetch --tags origin
+git show "$VERSION":scripts/upgrade-lan-from-v1.3.sh > /tmp/upgrade-lan-from-v1.3.sh
+sudo bash /tmp/upgrade-lan-from-v1.3.sh "$VERSION"`;
 }
 
 async function refreshUpdateStatus() {
@@ -1199,6 +1205,7 @@ function updateRoleGuide() {
   guideTabs.forEach((tab) => { tab.hidden = !role.guideSections.includes(tab.dataset.guideSection); });
   guideTabs.filter((tab) => !tab.hidden).forEach((tab, index) => { tab.querySelector("span").textContent = String(index + 1).padStart(2, "0"); });
   document.querySelectorAll(".guide-admin-only").forEach((element) => { element.hidden = !["developer", "admin"].includes(currentRole); });
+  document.querySelectorAll(".guide-developer-only").forEach((element) => { element.hidden = currentRole !== "developer"; });
   document.querySelector("#guide-records-heading").textContent = "维修、保养与采购记录";
   document.querySelector("#guide-records-lead").textContent = "所有成员都可查询并新增维修、保养和采购记录，保存后会立即同步到业务列表。";
   const activeTab = guideTabs.find((tab) => tab.classList.contains("active") && !tab.hidden);
@@ -2251,6 +2258,12 @@ document.querySelector("#update-check").addEventListener("click", async () => {
   catch (error) { showToast(error.message || "检查更新失败", "error"); }
   finally { button.disabled = false; }
 });
+document.querySelector("#update-manual-copy").addEventListener("click", async () => {
+  const command = document.querySelector("#update-manual-command").textContent;
+  try { await navigator.clipboard.writeText(command); showToast("手动升级命令已复制"); }
+  catch { showToast("复制失败，请手动选择命令", "error"); }
+});
+
 document.querySelector("#update-apply").addEventListener("click", async () => {
   if (!updateInfo?.updateAvailable || !window.confirm(`确认备份并升级到 v${updateInfo.latestVersion}？升级期间系统会短暂不可用。`)) return;
   const button = document.querySelector("#update-apply"); button.disabled = true;

@@ -37,6 +37,10 @@ function writeStatus(value) {
 }
 function statusMessage(state, message, extra = {}) { writeStatus({ state, message, ...extra }); }
 function currentRelease() { return command("readlink", ["-f", currentLink]).trim(); }
+function releaseVersion(directory) {
+  try { return JSON.parse(readFileSync(join(directory, "package.json"), "utf8")).version || process.env.APP_VERSION || "0.0.0"; }
+  catch { return process.env.APP_VERSION || "0.0.0"; }
+}
 function currentIsDirectory() { return lstatSync(currentLink).isDirectory() && !lstatSync(currentLink).isSymbolicLink(); }
 function releaseStamp(version, id) { return `${new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z")}-v${version}-${id.slice(0, 8)}`; }
 function archiveRoot(directory) {
@@ -76,6 +80,7 @@ async function runOnce() {
   const targetVersion = normalizeVersion(request.version);
   if (request.repository !== repository) throw new Error("升级请求来源仓库不匹配");
   const oldRelease = currentRelease();
+  const oldVersion = releaseVersion(oldRelease);
   const workDirectory = mkdtempSync(join(tmpdir(), "labequip-upgrade-"));
   let switched = false;
   let rollbackSource = oldRelease;
@@ -83,7 +88,7 @@ async function runOnce() {
   try {
     const release = await downloadRelease(targetVersion, workDirectory);
     runReleaseChecks(release);
-    if (compareVersions(targetVersion, process.env.APP_VERSION || "0.0.0") <= 0) throw new Error("目标版本不是更新版本");
+    if (compareVersions(targetVersion, oldVersion) <= 0) throw new Error("目标版本不是更新版本");
     mkdirSync(releasesDirectory, { recursive: true });
     const releaseDirectory = join(releasesDirectory, releaseStamp(targetVersion, request.id));
     renameSync(release, releaseDirectory);
