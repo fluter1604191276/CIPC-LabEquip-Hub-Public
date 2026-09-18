@@ -232,8 +232,23 @@ export function createApp(service, {
       }
 
       if (request.method === "GET" && url.pathname === "/api/laboratories") {
-        requireUser(request);
-        sendJson(response, 200, { data: service.listLaboratories() }, corsHeaders);
+        const user = requireUser(request);
+        const includeInactive = url.searchParams.get("includeInactive") === "true";
+        if (includeInactive && !["developer", "admin"].includes(user.role)) throw new AppError(403, "FORBIDDEN", "当前账号没有查看停用实验室的权限");
+        sendJson(response, 200, { data: service.listLaboratories({ includeInactive }) }, corsHeaders);
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/laboratories") {
+        const actor = requireUser(request, { roles: ["developer", "admin"] });
+        sendJson(response, 201, { data: service.createLaboratory(await readJson(request), actor) }, corsHeaders);
+        return;
+      }
+
+      const laboratoryMatch = url.pathname.match(/^\/api\/laboratories\/([^/]+)$/);
+      if (request.method === "PATCH" && laboratoryMatch) {
+        const actor = requireUser(request, { roles: ["developer", "admin"] });
+        sendJson(response, 200, { data: service.updateLaboratory(decodeURIComponent(laboratoryMatch[1]), await readJson(request), actor) }, corsHeaders);
         return;
       }
 
@@ -279,7 +294,7 @@ export function createApp(service, {
           paginated: false, query: url.searchParams.get("q") || "", actorId: url.searchParams.get("actorId") || "",
           action: url.searchParams.get("action") || "", entityType: url.searchParams.get("entityType") || ""
         }));
-        sendText(response, 200, auditCsv(rows), { ...corsHeaders, "Content-Disposition": `attachment; filename=cipc-audit-${new Date().toISOString().slice(0, 10)}.csv` });
+        sendText(response, 200, auditCsv(rows), { ...corsHeaders, "Content-Disposition": `attachment; filename=operation-audit-${new Date().toISOString().slice(0, 10)}.csv` });
         return;
       }
 
@@ -439,7 +454,7 @@ export function startServer({
     trustProxy: process.env.TRUST_PROXY === "true"
   });
   server.listen(port, "127.0.0.1", () => {
-    console.log(`CIPC LabEquip Hub API: http://localhost:${port}`);
+    console.log(`Laboratory Resource Hub API: http://localhost:${port}`);
     console.log(`SQLite data: ${dataFile}`);
   });
 

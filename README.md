@@ -1,13 +1,13 @@
-# CIPC LabEquip Hub
+# 实验室资源平台
 
-CIPC LabEquip Hub 是实验室内部的设备台账、设备/会议室预约、维修保养、采购记录和操作审计平台。
+实验室资源平台是实验室内部的设备台账、设备/会议室预约、维修保养、采购记录和操作审计平台。
 
-- 最新代码版本：`v1.3.0`
+- 最新代码版本：`v1.3.1`
 - 推荐部署环境：Ubuntu 22.04 / 24.04 LTS，Node.js 22，Docker Engine + Compose
 - 推荐使用方式：校内局域网部署，不开放公网 API
 - 数据存储：单机 SQLite，生产数据与代码目录分离
 
-> 原公网生产环境的仓库记录停留在 `v1.2.1`；学校机房新部署应使用 `v1.3.0` 标签。版本差异见 [版本矩阵](docs/VERSION_MATRIX.md)。
+> `v1.3.1` 新增管理员实验室与空间管理，并统一为无机构品牌界面。新部署可固定使用 `v1.3.1` 标签；已部署的学校环境需自行安排升级，本次发布不会自动更新学校主机。版本差异见 [版本矩阵](docs/VERSION_MATRIX.md)。
 
 ## 系统结构
 
@@ -103,7 +103,7 @@ sudo usermod -aG docker "$USER"
 ```bash
 sudo install -d -m 0755 -o "$USER" -g "$USER" /opt/cipc-labequip
 
-git clone --branch v1.3.0 --depth 1 \
+git clone --branch v1.3.1 --depth 1 \
   https://github.com/fluter1604191276/CIPC-LabEquip-Hub-Public.git \
   /opt/cipc-labequip/current
 

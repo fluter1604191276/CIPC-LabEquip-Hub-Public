@@ -4,20 +4,20 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#f6f7f9" />
-    <title>CIPC LabEquip Hub | 仪器共享预约平台</title>
+    <title>实验室资源平台 | 仪器共享预约平台</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="./styles.css?v=20260728-1" />
+    <link rel="stylesheet" href="./styles.css?v=1.3.1" />
   </head>
   <body class="auth-pending">
     <a class="skip-link" href="#main-content">跳至主内容</a>
     <main class="auth-screen" id="auth-screen" aria-labelledby="login-title">
       <section class="auth-brand-panel">
-        <div class="auth-brand-lockup"><span class="brand-mark">C</span><span><strong>CIPC</strong><small>LabEquip Hub</small></span></div>
+        <div class="auth-brand-lockup"><span class="brand-mark">L</span><span><strong>实验室资源平台</strong><small>Laboratory Resource Hub</small></span></div>
         <div class="auth-brand-copy"><p>LABORATORY RESOURCE PLATFORM</p><h1>实验室设备共享与预约</h1><span>统一管理设备、空间和预约排期。</span></div>
-        <div class="auth-brand-footer">CIPC INTERNAL ACCESS</div>
+        <div class="auth-brand-footer">INTERNAL ACCESS</div>
       </section>
       <section class="auth-form-panel">
         <form class="auth-card" id="login-form">
@@ -51,17 +51,17 @@
     <div class="app-shell">
       <aside class="sidebar" aria-label="主导航">
         <div class="brand-lockup">
-          <div class="brand-mark">C</div>
+          <div class="brand-mark">L</div>
           <div>
-            <strong>CIPC</strong>
-            <span>LabEquip Hub</span>
+            <strong>实验室资源平台</strong>
+            <span>Laboratory Resource Hub</span>
           </div>
         </div>
 
         <div class="workspace-switcher">
           <span class="eyebrow">当前空间</span>
           <button class="workspace-button" type="button">
-            <span><span class="status-dot green"></span> CIPC 全部实验室</span>
+            <span><span class="status-dot green"></span> 全部实验室</span>
           </button>
         </div>
 
@@ -127,7 +127,7 @@
             <div>
               <p class="kicker">WEDNESDAY · 23 JULY 2026</p>
               <h1 id="page-title">欢迎回来 <span>✦</span></h1>
-              <p class="subtitle">这里是 CIPC 实验室的设备共享工作台。</p>
+              <p class="subtitle">这里是实验室设备共享工作台。</p>
             </div>
             <button class="primary-button" id="open-reservation" type="button"><span>＋</span> 新建预约</button>
           </section>
@@ -202,7 +202,7 @@
             </article>
           </section>
 
-          <footer class="page-footer"><span>CIPC LabEquip Hub · 内部资源平台</span><span id="dashboard-updated-at">数据更新时间：刚刚</span></footer>
+          <footer class="page-footer"><span>实验室资源平台 · 内部资源平台</span><span id="dashboard-updated-at">数据更新时间：刚刚</span></footer>
           </div>
 
           <section class="workspace-view" id="equipment-view">
@@ -267,12 +267,12 @@
           <section class="workspace-view" id="members-view">
             <section class="page-heading"><div><p class="kicker">PEOPLE & ACCESS</p><h1>成员与权限 <span>✦</span></h1><p class="subtitle">查看已创建账号、角色和实验室基础信息。</p></div><button class="primary-button" id="open-member-form" type="button"><span>＋</span> 新增成员</button></section>
             <section class="member-grid"><div class="member-summary panel"><span class="stat-icon orange-icon">♙</span><strong id="member-count">0</strong><small>已创建账号</small></div><div class="member-summary panel"><span class="stat-icon green-icon">✓</span><strong id="member-role-count">0</strong><small>普通用户</small></div><div class="member-summary panel"><span class="stat-icon blue-icon">⌁</span><strong id="laboratory-count">0</strong><small>实验室与空间</small></div></section>
-            <div class="access-grid"><article class="panel members-panel"><div class="panel-heading"><div><h2>成员账号</h2><p>账号由管理员统一创建，不开放注册</p></div><label class="search-box"><span>⌕</span><input id="member-search" type="search" placeholder="搜索姓名或用户名" /></label></div><div class="members-list" id="members-list"></div></article><article class="panel laboratory-panel"><div class="panel-heading"><div><h2>实验室与空间</h2><p>当前启用的基础空间</p></div></div><div class="laboratory-list" id="laboratory-list"></div></article></div>
+            <div class="access-grid"><article class="panel members-panel"><div class="panel-heading"><div><h2>成员账号</h2><p>账号由管理员统一创建，不开放注册</p></div><label class="search-box"><span>⌕</span><input id="member-search" type="search" placeholder="搜索姓名或用户名" /></label></div><div class="members-list" id="members-list"></div></article><article class="panel laboratory-panel"><div class="panel-heading"><div><h2>实验室与空间</h2><p>管理实验室、空间及其开放状态</p></div><button class="secondary-button manager-only" id="open-laboratory-form" type="button"><span>＋</span> 新增实验室</button></div><div class="laboratory-list" id="laboratory-list"></div></article></div>
           </section>
 
           <section class="workspace-view" id="audit-view">
             <section class="page-heading"><div><p class="kicker">OPERATION AUDIT</p><h1>操作审计 <span>✦</span></h1><p class="subtitle">筛选、分页和导出设备、成员、预约与系统事件。</p></div><div class="page-heading-actions"><button class="secondary-button" id="audit-export" type="button">导出 CSV ↓</button><button class="secondary-button" id="audit-refresh" type="button">↻ 刷新</button></div></section>
-            <article class="panel audit-panel"><form class="audit-toolbar" id="audit-filter-form"><label class="search-box"><span>⌕</span><input id="audit-query" type="search" placeholder="搜索操作者、对象或摘要" /></label><label class="directory-select"><select id="audit-entity-type" aria-label="审计对象类型"><option value="">全部对象</option><option value="equipment">设备</option><option value="meeting_room">会议室</option><option value="reservation">设备预约</option><option value="room_reservation">会议室预约</option><option value="maintenance_record">维修保养</option><option value="procurement_record">采购</option><option value="user">成员</option><option value="system">系统</option></select></label><label class="compact-date"><span>从</span><input id="audit-date-from" type="date" /></label><label class="compact-date"><span>到</span><input id="audit-date-to" type="date" /></label><button class="primary-button" type="submit">筛选</button><button class="text-button" id="audit-reset" type="button">重置</button></form><div class="panel-heading"><div><h2>操作记录</h2><p id="audit-summary">正在加载审计记录</p></div></div><div class="audit-log-list" id="audit-log-list"></div><div class="list-pagination" id="audit-pagination"><button class="secondary-button" id="audit-previous" type="button">上一页</button><span>第 1 / 1 页</span><button class="secondary-button" id="audit-next" type="button">下一页</button></div></article>
+            <article class="panel audit-panel"><form class="audit-toolbar" id="audit-filter-form"><label class="search-box"><span>⌕</span><input id="audit-query" type="search" placeholder="搜索操作者、对象或摘要" /></label><label class="directory-select"><select id="audit-entity-type" aria-label="审计对象类型"><option value="">全部对象</option><option value="equipment">设备</option><option value="meeting_room">会议室</option><option value="laboratory">实验室</option><option value="reservation">设备预约</option><option value="room_reservation">会议室预约</option><option value="maintenance_record">维修保养</option><option value="procurement_record">采购</option><option value="user">成员</option><option value="system">系统</option></select></label><label class="compact-date"><span>从</span><input id="audit-date-from" type="date" /></label><label class="compact-date"><span>到</span><input id="audit-date-to" type="date" /></label><button class="primary-button" type="submit">筛选</button><button class="text-button" id="audit-reset" type="button">重置</button></form><div class="panel-heading"><div><h2>操作记录</h2><p id="audit-summary">正在加载审计记录</p></div></div><div class="audit-log-list" id="audit-log-list"></div><div class="list-pagination" id="audit-pagination"><button class="secondary-button" id="audit-previous" type="button">上一页</button><span>第 1 / 1 页</span><button class="secondary-button" id="audit-next" type="button">下一页</button></div></article>
           </section>
         </div>
       </main>
@@ -313,7 +313,7 @@
       <section class="modal equipment-form-modal" role="dialog" aria-modal="true" aria-labelledby="equipment-modal-title">
         <div class="modal-header"><div><p class="kicker">NEW EQUIPMENT</p><h2 id="equipment-modal-title">新增设备</h2></div><button class="icon-button close-equipment-modal" aria-label="关闭" type="button">×</button></div>
         <form id="equipment-form">
-          <div class="form-row"><label>设备名称<input id="new-equipment-name" type="text" placeholder="例如：光功率计" required /></label><label>资产编号<input id="new-equipment-code" type="text" placeholder="CIPC-EQ-090" required /></label></div>
+          <div class="form-row"><label>设备名称<input id="new-equipment-name" type="text" placeholder="例如：光功率计" required /></label><label>资产编号<input id="new-equipment-code" type="text" placeholder="LAB-EQ-090" required /></label></div>
           <label>性能指标<input id="new-equipment-metric" type="text" placeholder="例如：波长范围 400–1100 nm" required /></label>
           <label>所在实验室<select id="new-equipment-lab" required></select></label>
           <div class="form-row"><label>设备保管人<input id="new-equipment-owner" type="text" placeholder="例如：测试成员01" required /></label><label>初始状态<select id="new-equipment-status"><option value="available">可用</option><option value="maintenance">维修中</option><option value="disabled">已停用</option><option value="retired">已报废</option></select></label></div>
@@ -329,7 +329,7 @@
         <form id="edit-equipment-form">
           <div class="form-row"><label>设备名称<input id="edit-equipment-name" type="text" maxlength="200" required /></label><label>资产编号<input id="edit-equipment-code" type="text" maxlength="80" required /></label></div>
           <label>性能指标<input id="edit-equipment-metric" type="text" maxlength="500" required /></label>
-          <label>所在实验室<select id="edit-equipment-laboratory" required></select></label>
+          <label>所在实验室<select id="edit-equipment-laboratory"></select></label>
           <label>设备保管人<input id="edit-equipment-owner" type="text" maxlength="200" required /></label>
           <div class="form-note"><span>i</span><span>设备状态请在详情页单独修改；保存后名称、编号和归属信息会同步到台账、预约与业务记录。</span></div>
           <p class="auth-error" id="edit-equipment-error" role="alert" hidden></p>
@@ -379,6 +379,20 @@
       </section>
     </div>
 
+    <div class="modal-backdrop" id="laboratory-modal" aria-hidden="true" inert>
+      <section class="modal record-form-modal laboratory-form-modal" role="dialog" aria-modal="true" aria-labelledby="laboratory-modal-title">
+        <div class="modal-header"><div><p class="kicker">LABORATORY & SPACE</p><h2 id="laboratory-modal-title">新增实验室</h2></div><button class="icon-button close-laboratory-modal" aria-label="关闭实验室表单" type="button">×</button></div>
+        <form id="laboratory-form">
+          <div class="form-row"><label>实验室名称<input id="laboratory-name" type="text" maxlength="100" placeholder="例如：光电融合实验室" required /></label><label>实验室编号<input id="laboratory-code" type="text" maxlength="40" placeholder="例如：LAB-09" required /></label></div>
+          <div class="form-row"><label>别名<input id="laboratory-alias" type="text" maxlength="100" placeholder="例如：实验室九" required /></label><label>排序<input id="laboratory-sort-order" type="number" min="0" max="999999" step="1" placeholder="自动排在末尾" /></label></div>
+          <label class="laboratory-active-field" hidden>开放状态<select id="laboratory-active"><option value="true">启用</option><option value="false">停用</option></select></label>
+          <div class="form-note"><span>i</span><span>停用后不再用于新设备和新成员分配；已有归属与预约仍保留，设备及会议室开放状态需单独管理。</span></div>
+          <p class="auth-error" id="laboratory-error" role="alert" hidden></p>
+          <div class="modal-actions"><button class="secondary-button close-laboratory-modal" type="button">取消</button><button class="primary-button" type="submit">保存实验室 <span>→</span></button></div>
+        </form>
+      </section>
+    </div>
+
     <div class="modal-backdrop" id="edit-member-modal" aria-hidden="true" inert>
       <section class="modal member-form-modal" role="dialog" aria-modal="true" aria-labelledby="edit-member-modal-title">
         <div class="modal-header"><div><p class="kicker">EDIT MEMBER</p><h2 id="edit-member-modal-title">编辑成员账号</h2></div><button class="icon-button close-edit-member-modal" aria-label="关闭" type="button">×</button></div>
@@ -423,7 +437,7 @@
       <section class="guide-dialog" role="dialog" aria-modal="true" aria-labelledby="guide-title">
         <header class="guide-header">
           <div>
-            <p class="kicker">CIPC LABEQUIP HUB</p>
+            <p class="kicker">LABORATORY RESOURCE HUB</p>
             <h2 id="guide-title">使用指南</h2>
             <p>设备查询、预约与数据管理说明</p>
           </div>
@@ -491,7 +505,7 @@
               </div>
               <div class="guide-note warning"><strong>重要提醒</strong><p>系统已记录关键业务操作并提供一致性备份工具；正式资料仍需遵循实验室数据管理规范，不应只保留在单一系统中。</p></div>
               <h4>当前权限页面</h4>
-              <p>开发者和系统管理员可创建账号，修改成员姓名、用户名、权限等级和实验室，并重置其他成员密码。新账号和被重置账号首次登录必须修改初始密码。</p>
+              <p>开发者和系统管理员可创建账号，修改成员姓名、用户名、权限等级和实验室，并重置其他成员密码。新账号和被重置账号首次登录必须修改初始密码。管理员还可在“实验室与空间”新增或编辑名称、编号、别名、排序和启用状态；改名会同步设备与成员的当前归属。</p>
             </section>
 
             <section class="guide-panel" id="guide-panel-faq" data-guide-panel="faq" role="tabpanel" aria-labelledby="guide-tab-faq" hidden>
@@ -524,6 +538,6 @@
       </section>
     </div>
     <div class="toast" id="toast" role="status"><span class="toast-check">✓</span><span id="toast-message"></span></div>
-    <script src="./app.js?v=1.3.0"></script>
+    <script src="./app.js?v=1.3.1"></script>
   </body>
 </html>

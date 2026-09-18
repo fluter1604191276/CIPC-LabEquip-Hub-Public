@@ -35,4 +35,4 @@ createServer(async (request, response) => {
     const body = await readFile(file);
     response.writeHead(200, { "Content-Type": mime[extname(file)] || "application/octet-stream", "Cache-Control": "no-cache" }); response.end(body);
   } catch { response.writeHead(404); response.end("Not found"); }
-}).listen(port, () => console.log(`CIPC LabEquip Hub web demo: http://localhost:${port}`));
+}).listen(port, () => console.log(`Laboratory Resource Hub web: http://localhost:${port}`));

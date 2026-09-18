@@ -4034,6 +4034,18 @@ button:disabled {
 .laboratory-row .pill-dot {
   margin: 0;
 }
+.laboratory-row.inactive {
+  opacity: 0.72;
+}
+.laboratory-row .edit-laboratory-action {
+  flex: 0 0 auto;
+}
+.laboratory-panel .panel-heading {
+  align-items: flex-start;
+}
+.laboratory-form-modal {
+  max-width: 620px;
+}
 .member-actions {
   width: 66px;
   display: flex;

@@ -451,6 +451,49 @@ test("restricts meeting-room management and exposes paginated audit filters", as
   assert.match(await csvResponse.text(), /"'=2\+2"/);
 });
 
+test("restricts laboratory management to administrators and supports inactive listings", async (t) => {
+  const { service, baseUrl } = await httpFixture(t);
+  const member = service.listUsers().find((user) => user.username === "member01");
+  const developer = service.listUsers().find((user) => user.username === "developer");
+  await service.changePassword(member.id, "123456", "LaboratoryMember2026");
+  await service.changePassword(developer.id, "123456", "LaboratoryDeveloper2026");
+  const memberSession = await login(baseUrl, "member01", "LaboratoryMember2026");
+  const developerSession = await login(baseUrl, "developer", "LaboratoryDeveloper2026");
+
+  const forbidden = await fetch(`${baseUrl}/api/laboratories`, {
+    method: "POST", headers: { Cookie: memberSession.cookie, "Content-Type": "application/json" },
+    body: JSON.stringify({ code: "HTTP-LAB-09", name: "成员新实验室", alias: "成员空间" })
+  });
+  assert.equal(forbidden.status, 403);
+
+  const createdResponse = await fetch(`${baseUrl}/api/laboratories`, {
+    method: "POST", headers: { Cookie: developerSession.cookie, "Content-Type": "application/json" },
+    body: JSON.stringify({ code: "HTTP-LAB-09", name: "接口新实验室", alias: "接口空间", sortOrder: 90 })
+  });
+  assert.equal(createdResponse.status, 201);
+  const laboratory = (await createdResponse.json()).data;
+  assert.equal(laboratory.code, "HTTP-LAB-09");
+
+  const memberList = await fetch(`${baseUrl}/api/laboratories`, { headers: { Cookie: memberSession.cookie } });
+  assert.equal(memberList.status, 200);
+  assert.equal((await memberList.json()).data.some((item) => item.id === laboratory.id), true);
+
+  const updatedResponse = await fetch(`${baseUrl}/api/laboratories/${encodeURIComponent(laboratory.id)}`, {
+    method: "PATCH", headers: { Cookie: developerSession.cookie, "Content-Type": "application/json" },
+    body: JSON.stringify({ active: false, name: "接口停用实验室" })
+  });
+  assert.equal(updatedResponse.status, 200);
+  assert.equal((await updatedResponse.json()).data.active, false);
+
+  const memberAfterUpdate = await fetch(`${baseUrl}/api/laboratories`, { headers: { Cookie: memberSession.cookie } });
+  assert.equal((await memberAfterUpdate.json()).data.some((item) => item.id === laboratory.id), false);
+  const managerList = await fetch(`${baseUrl}/api/laboratories?includeInactive=true`, { headers: { Cookie: developerSession.cookie } });
+  assert.equal(managerList.status, 200);
+  assert.equal((await managerList.json()).data.find((item) => item.id === laboratory.id).active, false);
+  const memberManagerList = await fetch(`${baseUrl}/api/laboratories?includeInactive=true`, { headers: { Cookie: memberSession.cookie } });
+  assert.equal(memberManagerList.status, 403);
+});
+
 test("lets every business role access maintenance and procurement records", async (t) => {
   const { service, baseUrl } = await httpFixture(t);
   const member = service.listUsers().find((user) => user.username === "member01");

@@ -658,13 +658,19 @@ function seedDatabase(database, { includeUsers = true } = {}) {
 
   database.exec("BEGIN IMMEDIATE");
   try {
-    const insertLaboratory = database.prepare(`
-      INSERT OR IGNORE INTO laboratories (id, code, name, alias, sort_order, is_active, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, 1, ?, ?)
-    `);
-    laboratorySeeds.forEach((laboratory, index) => {
-      insertLaboratory.run(randomUUID(), laboratory.code, laboratory.name, laboratory.alias, index + 1, now, now);
-    });
+    // Seed the built-in spaces only for a genuinely empty database. Once an
+    // administrator has created or renamed a space, reopening the database
+    // must not reintroduce stale defaults alongside the persisted data.
+    const laboratoryCount = database.prepare("SELECT COUNT(*) AS count FROM laboratories").get().count;
+    if (laboratoryCount === 0) {
+      const insertLaboratory = database.prepare(`
+        INSERT INTO laboratories (id, code, name, alias, sort_order, is_active, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+      `);
+      laboratorySeeds.forEach((laboratory, index) => {
+        insertLaboratory.run(randomUUID(), laboratory.code, laboratory.name, laboratory.alias, index + 1, now, now);
+      });
+    }
 
     if (includeUsers) {
       const insertUser = database.prepare(`

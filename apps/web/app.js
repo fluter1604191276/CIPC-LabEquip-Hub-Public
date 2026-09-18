@@ -53,6 +53,7 @@ const editMemberModal = document.querySelector("#edit-member-modal");
 const resetPasswordModal = document.querySelector("#reset-password-modal");
 const selfPasswordModal = document.querySelector("#self-password-modal");
 const meetingRoomModal = document.querySelector("#meeting-room-modal");
+const laboratoryModal = document.querySelector("#laboratory-modal");
 const drawer = document.querySelector("#equipment-drawer");
 const guideModal = document.querySelector("#guide-modal");
 const notificationButton = document.querySelector(".notification-button");
@@ -67,6 +68,7 @@ let editingUser = null;
 let resettingUser = null;
 let editingEquipment = null;
 let editingMeetingRoom = null;
+let editingLaboratory = null;
 const dialogReturnFocus = new WeakMap();
 
 notificationButton.addEventListener("click", (event) => {
@@ -144,7 +146,7 @@ function escapeHtml(value) {
 
 function readStoredRole() {
   try {
-    const role = localStorage.getItem("cipc-view-role");
+    const role = localStorage.getItem("lab-resource-view-role");
     return roleDefinitions[role] ? role : "developer";
   } catch {
     return "developer";
@@ -258,7 +260,7 @@ function exportEquipmentDirectory() {
   const url = URL.createObjectURL(new Blob(["\ufeff", csv], { type: "text/csv;charset=utf-8" }));
   const link = document.createElement("a");
   link.href = url;
-  link.download = `CIPC-设备清单-${currentDate}.csv`;
+  link.download = `设备清单-${currentDate}.csv`;
   document.body.append(link);
   link.click();
   link.remove();
@@ -371,7 +373,7 @@ function auditActionLabel(action) {
 }
 
 function auditEntityLabel(entityType) {
-  return { equipment: "设备", user: "成员", reservation: "设备预约", room_reservation: "会议室预约", maintenance_record: "维修保养", procurement_record: "采购记录" }[entityType] || entityType || "业务对象";
+  return { equipment: "设备", user: "成员", reservation: "设备预约", room_reservation: "会议室预约", laboratory: "实验室", maintenance_record: "维修保养", procurement_record: "采购记录" }[entityType] || entityType || "业务对象";
 }
 
 function auditSummaryText(summary) {
@@ -381,7 +383,7 @@ function auditSummaryText(summary) {
   const roomItem = summary.meetingRoomId ? meetingRooms.find((item) => item.id === summary.meetingRoomId) : null;
   const auditStatuses = { ...statusLabels, ...reservationStatusLabels, open: "待处理", in_progress: "处理中", pending: "待验收", accepted: "已验收", rejected: "验收未通过" };
   const statusText = (status) => auditStatuses[status] || status;
-  const fieldLabels = { username: "用户名", displayName: "姓名", role: "权限", laboratoryId: "实验室", name: "名称", code: "编号", metric: "性能指标", lab: "实验室", owner: "保管人", status: "状态" };
+  const fieldLabels = { username: "用户名", displayName: "姓名", role: "权限", laboratoryId: "实验室", name: "名称", code: "编号", metric: "性能指标", lab: "实验室", owner: "保管人", status: "状态", alias: "别名", sortOrder: "排序", active: "启用状态" };
 
   if (summary.name) parts.push(summary.name);
   if (summary.code) parts.push(summary.code);
@@ -883,10 +885,12 @@ function renderAccessData() {
   const roleClasses = { developer: "admin-role", admin: "admin-role", member: "user-role" };
   const search = document.querySelector("#member-search")?.value.trim().toLowerCase() || "";
   const filteredUsers = users.filter((user) => [user.displayName, user.username].some((value) => value.toLowerCase().includes(search)));
+  const canManageLaboratories = ["developer", "admin"].includes(currentRole);
+  const visibleLaboratories = canManageLaboratories ? laboratories : laboratories.filter((laboratory) => laboratory.active);
 
   document.querySelector("#member-count").textContent = users.length;
   document.querySelector("#member-role-count").textContent = users.filter((user) => user.role === "member").length;
-  document.querySelector("#laboratory-count").textContent = laboratories.length;
+  document.querySelector("#laboratory-count").textContent = visibleLaboratories.length;
   document.querySelector("#members-list").innerHTML = filteredUsers.length
     ? filteredUsers.map((user) => {
       const canManage = currentUser?.role === "developer" || user.role !== "developer";
@@ -897,7 +901,9 @@ function renderAccessData() {
       return `<div class="member-row"><div class="avatar avatar-slate">${escapeHtml(user.displayName.slice(0, 1))}</div><div><strong>${escapeHtml(user.displayName)}</strong><small>${escapeHtml(user.username)} · ${escapeHtml(user.laboratoryName || "暂未分配实验室")}</small></div><span class="role-badge ${roleClasses[user.role] || "user-role"}">${escapeHtml(roleLabels[user.role] || user.role)}</span><span class="member-last">${user.mustChangePassword ? "待首次改密" : "已启用"}</span>${actions}</div>`;
     }).join("")
     : `<div class="empty-state compact"><strong>没有匹配账号</strong><span>请调整搜索条件。</span></div>`;
-  document.querySelector("#laboratory-list").innerHTML = laboratories.map((laboratory, index) => `<div class="laboratory-row"><span>${String(index + 1).padStart(2, "0")}</span><div><strong>${escapeHtml(laboratory.name)}</strong><small>${escapeHtml(laboratory.alias)} · ${escapeHtml(laboratory.code)}</small></div><i class="pill-dot green"></i></div>`).join("");
+  document.querySelector("#laboratory-list").innerHTML = visibleLaboratories.length
+    ? visibleLaboratories.map((laboratory, index) => `<div class="laboratory-row${laboratory.active ? "" : " inactive"}"><span>${String(index + 1).padStart(2, "0")}</span><div><strong>${escapeHtml(laboratory.name)}</strong><small>${escapeHtml(laboratory.alias)} · ${escapeHtml(laboratory.code)} · ${laboratory.active ? "启用" : "已停用"}</small></div><i class="pill-dot ${laboratory.active ? "green" : "orange"}"></i>${canManageLaboratories ? `<button class="member-action-button edit-laboratory-action" data-laboratory-id="${escapeHtml(laboratory.id)}" type="button" title="编辑实验室" aria-label="编辑 ${escapeHtml(laboratory.name)}">✎</button>` : ""}</div>`).join("")
+    : `<div class="empty-state compact"><strong>暂无实验室</strong><span>请联系管理员添加可用空间。</span></div>`;
 }
 
 function renderAll() {
@@ -1048,15 +1054,47 @@ function setMeetingRoomModal(open, room = null) {
   setManagedDialog(meetingRoomModal, open, "#meeting-room-name");
 }
 
+function setLaboratoryModal(open, laboratory = null) {
+  editingLaboratory = open ? laboratory : null;
+  const form = document.querySelector("#laboratory-form");
+  const activeField = document.querySelector(".laboratory-active-field");
+  setAuthError(document.querySelector("#laboratory-error"));
+  if (open) {
+    document.querySelector("#laboratory-modal-title").textContent = laboratory ? "编辑实验室" : "新增实验室";
+    document.querySelector("#laboratory-name").value = laboratory?.name || "";
+    document.querySelector("#laboratory-code").value = laboratory?.code || "";
+    document.querySelector("#laboratory-alias").value = laboratory?.alias || "";
+    document.querySelector("#laboratory-sort-order").value = laboratory?.sortOrder ?? "";
+    document.querySelector("#laboratory-active").value = String(laboratory?.active ?? true);
+    activeField.hidden = !laboratory;
+  } else {
+    form.reset();
+    activeField.hidden = true;
+  }
+  setManagedDialog(laboratoryModal, open, "#laboratory-name");
+}
+
+function ensureLaboratoryOption(selector, laboratory) {
+  if (!laboratory || laboratory.active) return;
+  const select = document.querySelector(selector);
+  if (!select || select.querySelector(`option[value="${CSS.escape(laboratory.id)}"]`)) return;
+  select.insertAdjacentHTML("beforeend", `<option value="${escapeHtml(laboratory.id)}">${escapeHtml(laboratory.name)} - ${escapeHtml(laboratory.alias)}（已停用）</option>`);
+}
+
 function setEditEquipmentModal(open, item = null) {
   editingEquipment = open ? item : null;
   setAuthError(document.querySelector("#edit-equipment-error"));
   if (open && item) {
+    renderLaboratoryOptions();
     document.querySelector("#edit-equipment-name").value = item.name;
     document.querySelector("#edit-equipment-code").value = item.code;
     document.querySelector("#edit-equipment-metric").value = item.metric;
     document.querySelector("#edit-equipment-owner").value = item.owner;
     const laboratory = laboratories.find((entry) => entry.name === item.lab);
+    ensureLaboratoryOption("#edit-equipment-laboratory", laboratory);
+    if (!laboratory) {
+      document.querySelector("#edit-equipment-laboratory").insertAdjacentHTML("beforeend", `<option value="">${escapeHtml(item.lab)}（保留当前归属）</option>`);
+    }
     document.querySelector("#edit-equipment-laboratory").value = laboratory?.id || "";
   }
   setManagedDialog(editEquipmentModal, open, "#edit-equipment-name");
@@ -1090,11 +1128,14 @@ function setEditMemberModal(open, user = null) {
   editingUser = open ? user : null;
   setAuthError(document.querySelector("#edit-member-form-error"));
   if (open && user) {
+    renderLaboratoryOptions();
     document.querySelector("#edit-member-name").value = user.displayName;
     document.querySelector("#edit-member-username").value = user.username;
     const roleSelect = document.querySelector("#edit-member-role");
     roleSelect.value = user.role;
     roleSelect.disabled = user.role === "developer" || user.id === currentUser?.id;
+    const laboratory = laboratories.find((entry) => entry.id === user.laboratoryId);
+    ensureLaboratoryOption("#edit-member-laboratory", laboratory);
     document.querySelector("#edit-member-laboratory").value = user.laboratoryId || "";
   }
   setManagedDialog(editMemberModal, open, "#edit-member-name");
@@ -1148,7 +1189,7 @@ function applyRoleView(role, announce = false) {
   const definition = roleDefinitions[role];
   document.body.dataset.role = role;
   if (actualRole === "developer") {
-    try { localStorage.setItem("cipc-view-role", role); } catch { /* Storage is optional. */ }
+    try { localStorage.setItem("lab-resource-view-role", role); } catch { /* Storage is optional. */ }
   }
 
   document.querySelector("#role-view-label").textContent = `当前：${definition.label}`;
@@ -1176,6 +1217,7 @@ function applyRoleView(role, announce = false) {
 
   const activeView = document.querySelector(".nav-item.active")?.dataset.view;
   if (!definition.views.includes(activeView)) document.querySelector('[data-view="overview"]').click();
+  renderAccessData();
   renderUpcoming();
   renderMeetingRooms();
   updateRoleGuide();
@@ -1301,13 +1343,14 @@ function renderMeetingRooms() {
 }
 
 function renderLaboratoryOptions() {
-  document.querySelector("#new-equipment-lab").innerHTML = laboratories.map((laboratory) => `<option value="${escapeHtml(laboratory.name)}">${escapeHtml(laboratory.name)} - ${escapeHtml(laboratory.alias)}</option>`).join("");
-  document.querySelector("#edit-equipment-laboratory").innerHTML = laboratories.map((laboratory) => `<option value="${escapeHtml(laboratory.id)}">${escapeHtml(laboratory.name)} - ${escapeHtml(laboratory.alias)}</option>`).join("");
-  document.querySelector("#new-member-laboratory").innerHTML = `<option value="">暂不分配实验室</option>${laboratories.map((laboratory) => `<option value="${escapeHtml(laboratory.id)}">${escapeHtml(laboratory.name)} - ${escapeHtml(laboratory.alias)}</option>`).join("")}`;
-  document.querySelector("#edit-member-laboratory").innerHTML = `<option value="">暂不分配实验室</option>${laboratories.map((laboratory) => `<option value="${escapeHtml(laboratory.id)}">${escapeHtml(laboratory.name)} - ${escapeHtml(laboratory.alias)}</option>`).join("")}`;
+  const activeLaboratories = laboratories.filter((laboratory) => laboratory.active);
+  document.querySelector("#new-equipment-lab").innerHTML = activeLaboratories.map((laboratory) => `<option value="${escapeHtml(laboratory.name)}">${escapeHtml(laboratory.name)} - ${escapeHtml(laboratory.alias)}</option>`).join("");
+  document.querySelector("#edit-equipment-laboratory").innerHTML = activeLaboratories.map((laboratory) => `<option value="${escapeHtml(laboratory.id)}">${escapeHtml(laboratory.name)} - ${escapeHtml(laboratory.alias)}</option>`).join("");
+  document.querySelector("#new-member-laboratory").innerHTML = `<option value="">暂不分配实验室</option>${activeLaboratories.map((laboratory) => `<option value="${escapeHtml(laboratory.id)}">${escapeHtml(laboratory.name)} - ${escapeHtml(laboratory.alias)}</option>`).join("")}`;
+  document.querySelector("#edit-member-laboratory").innerHTML = `<option value="">暂不分配实验室</option>${activeLaboratories.map((laboratory) => `<option value="${escapeHtml(laboratory.id)}">${escapeHtml(laboratory.name)} - ${escapeHtml(laboratory.alias)}</option>`).join("")}`;
   const directoryFilter = document.querySelector("#directory-laboratory-filter");
   const selectedLaboratory = directoryFilter.value;
-  const laboratoryNames = [...new Set([...laboratories.map((item) => item.name), ...equipment.map((item) => item.lab)].filter(Boolean))];
+  const laboratoryNames = [...new Set([...activeLaboratories.map((item) => item.name), ...equipment.map((item) => item.lab)].filter(Boolean))];
   directoryFilter.innerHTML = `<option value="all">全部实验室</option>${laboratoryNames.map((name) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join("")}`;
   directoryFilter.value = laboratoryNames.includes(selectedLaboratory) ? selectedLaboratory : "all";
 }
@@ -1384,7 +1427,8 @@ function showPasswordChange() {
 async function loadApplicationData() {
   const actualRole = currentUser?.role;
   const roomsPath = ["developer", "admin"].includes(actualRole) ? "/meeting-rooms?includeInactive=true" : "/meeting-rooms";
-  const requests = [apiRequest("/equipment"), apiRequest("/reservations"), apiRequest("/laboratories"), apiRequest(roomsPath), apiRequest("/room-reservations"), apiRequest("/maintenance-records"), apiRequest("/procurement-records"), apiRequest("/my-reservations")];
+  const laboratoriesPath = ["developer", "admin"].includes(actualRole) ? "/laboratories?includeInactive=true" : "/laboratories";
+  const requests = [apiRequest("/equipment"), apiRequest("/reservations"), apiRequest(laboratoriesPath), apiRequest(roomsPath), apiRequest("/room-reservations"), apiRequest("/maintenance-records"), apiRequest("/procurement-records"), apiRequest("/my-reservations")];
   if (actualRole === "developer" || actualRole === "admin") requests.push(apiRequest("/users"), apiRequest(`/audit-logs?page=1&pageSize=${auditPagination.pageSize}`));
   const result = await Promise.all(requests);
   [equipment, reservations, laboratories, meetingRooms, roomReservations, maintenanceRecords, procurementRecords] = result;
@@ -1403,7 +1447,7 @@ async function enterApplication() {
   passwordChangeScreen.hidden = true;
   document.body.classList.remove("auth-pending");
   document.body.classList.add("authenticated");
-  document.querySelector(".workspace-button > span:first-child").lastChild.textContent = " CIPC 全部实验室";
+  document.querySelector(".workspace-button > span:first-child").lastChild.textContent = " 全部实验室";
   applyRoleView(currentUser.role === "developer" ? readStoredRole() : currentUser.role);
   scheduleGreetingRefresh();
 }
@@ -1470,7 +1514,7 @@ document.querySelector("#audit-next").addEventListener("click", async () => { au
 document.querySelector("#audit-export").addEventListener("click", () => {
   const link = document.createElement("a");
   link.href = `/api/audit-logs.csv?${auditSearchParams({ includePage: false })}`;
-  link.download = `CIPC-操作审计-${currentDate}.csv`;
+  link.download = `操作审计-${currentDate}.csv`;
   document.body.append(link);
   link.click();
   link.remove();
@@ -1490,6 +1534,9 @@ document.querySelector("#open-room-reservation").addEventListener("click", () =>
 document.querySelector("#open-room-form").addEventListener("click", () => setMeetingRoomModal(true));
 document.querySelectorAll(".close-meeting-room-modal").forEach((button) => button.addEventListener("click", () => setMeetingRoomModal(false)));
 meetingRoomModal.addEventListener("click", (event) => { if (event.target === meetingRoomModal) setMeetingRoomModal(false); });
+document.querySelector("#open-laboratory-form").addEventListener("click", () => setLaboratoryModal(true));
+document.querySelectorAll(".close-laboratory-modal").forEach((button) => button.addEventListener("click", () => setLaboratoryModal(false)));
+laboratoryModal.addEventListener("click", (event) => { if (event.target === laboratoryModal) setLaboratoryModal(false); });
 document.querySelectorAll("[data-reservation-kind]").forEach((button) => button.addEventListener("click", () => setReservationKind(button.dataset.reservationKind)));
 document.querySelectorAll(".close-modal").forEach((button) => button.addEventListener("click", () => setModal(false)));
 modal.addEventListener("click", (event) => { if (event.target === modal) setModal(false); });
@@ -1499,6 +1546,7 @@ document.addEventListener("keydown", (event) => {
   setModal(false);
   setEquipmentModal(false);
   setMeetingRoomModal(false);
+  setLaboratoryModal(false);
   setEditEquipmentModal(false);
   setMaintenanceModal(false);
   setProcurementModal(false);
@@ -1680,6 +1728,46 @@ document.querySelector("#meeting-room-form").addEventListener("submit", async (e
   }
 });
 
+document.querySelector("#laboratory-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const submit = event.submitter;
+  const errorElement = document.querySelector("#laboratory-error");
+  submit.disabled = true;
+  setAuthError(errorElement);
+  try {
+    const input = {
+      name: document.querySelector("#laboratory-name").value.trim(),
+      code: document.querySelector("#laboratory-code").value.trim(),
+      alias: document.querySelector("#laboratory-alias").value.trim(),
+      sortOrder: document.querySelector("#laboratory-sort-order").value === "" ? undefined : Number(document.querySelector("#laboratory-sort-order").value),
+      ...(editingLaboratory ? { active: document.querySelector("#laboratory-active").value === "true" } : {})
+    };
+    const laboratory = await apiRequest(editingLaboratory ? `/laboratories/${encodeURIComponent(editingLaboratory.id)}` : "/laboratories", {
+      method: editingLaboratory ? "PATCH" : "POST",
+      body: JSON.stringify(input)
+    });
+    const index = laboratories.findIndex((item) => item.id === laboratory.id);
+    if (index >= 0) laboratories[index] = laboratory; else laboratories.push(laboratory);
+    laboratories.sort((left, right) => (left.sortOrder - right.sortOrder) || left.code.localeCompare(right.code));
+    setLaboratoryModal(false);
+    renderLaboratoryOptions();
+    renderAccessData();
+    showToast(index >= 0 ? "实验室信息已更新" : "实验室已创建");
+    // Reload derived equipment/user names, but do not turn a successful save into a retry.
+    try {
+      await loadApplicationData();
+      const refreshedUser = users.find((user) => user.id === currentUser?.id);
+      if (refreshedUser) currentUser = refreshedUser;
+    } catch (error) {
+      showToast(`实验室已保存，关联数据刷新失败，请刷新页面：${error.message}`, "error");
+    }
+  } catch (error) {
+    setAuthError(errorElement, error.message || "实验室保存失败");
+  } finally {
+    submit.disabled = false;
+  }
+});
+
 document.querySelector("#equipment-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const submit = event.submitter;
@@ -1726,7 +1814,7 @@ document.querySelector("#edit-equipment-form").addEventListener("submit", async 
         name: document.querySelector("#edit-equipment-name").value.trim(),
         code: document.querySelector("#edit-equipment-code").value.trim(),
         metric: document.querySelector("#edit-equipment-metric").value.trim(),
-        laboratoryId: document.querySelector("#edit-equipment-laboratory").value,
+        ...(document.querySelector("#edit-equipment-laboratory").value ? { laboratoryId: document.querySelector("#edit-equipment-laboratory").value } : {}),
         owner: document.querySelector("#edit-equipment-owner").value.trim()
       })
     });
@@ -1786,6 +1874,13 @@ document.querySelector("#members-list").addEventListener("click", (event) => {
   if (editButton) setEditMemberModal(true, user);
   else setResetPasswordModal(true, user);
 });
+document.querySelector("#laboratory-list").addEventListener("click", (event) => {
+  const button = event.target.closest(".edit-laboratory-action");
+  if (!button) return;
+  const laboratory = laboratories.find((item) => item.id === button.dataset.laboratoryId);
+  if (laboratory) setLaboratoryModal(true, laboratory);
+});
+
 
 document.querySelectorAll(".close-edit-member-modal").forEach((button) => button.addEventListener("click", () => setEditMemberModal(false)));
 editMemberModal.addEventListener("click", (event) => { if (event.target === editMemberModal) setEditMemberModal(false); });
@@ -2201,8 +2296,8 @@ document.querySelector("#self-password-form").addEventListener("submit", async (
 async function initializeApp() {
   updateDateLabels();
   try {
-    localStorage.removeItem("cipc-demo-equipment");
-    localStorage.removeItem("cipc-demo-reservations");
+    localStorage.removeItem("lab-resource-demo-equipment");
+    localStorage.removeItem("lab-resource-demo-reservations");
   } catch { /* Old demo storage is optional. */ }
   try {
     currentUser = await apiRequest("/auth/session");

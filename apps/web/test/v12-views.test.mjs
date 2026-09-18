@@ -85,3 +85,24 @@ test("mobile calendar keeps empty week days compact and the guide reflects deliv
   assert.doesNotMatch(html, /月视图和外部日历同步尚待实现/);
   assert.doesNotMatch(html, /审计日志、自动备份和正式生产数据库尚未完成/);
 });
+
+test("laboratory management is manager-only and the public shell has no visible legacy branding", () => {
+  assert.match(html, /id="open-laboratory-form"/);
+  assert.match(html, /id="laboratory-modal"/);
+  assert.match(html, /id="laboratory-form"/);
+  assert.match(app, /function setLaboratoryModal\(open, laboratory = null\)/);
+  assert.match(app, /editingLaboratory \? `\/laboratories\//);
+  assert.match(app, /data-laboratory-id/);
+  assert.match(app, /const canManageLaboratories = \["developer", "admin"\]\.includes\(currentRole\)/);
+  assert.doesNotMatch(html, /CIPC|cipc/i);
+});
+
+test("laboratory saves reload derived data and retain legacy equipment assignments", () => {
+  assert.match(app, /await loadApplicationData\(\);[\s\S]*const refreshedUser = users\.find/);
+  assert.match(app, /实验室已保存，关联数据刷新失败/);
+  assert.match(app, /if \(open && user\) \{\s*renderLaboratoryOptions\(\);/);
+  assert.match(app, /if \(open && item\) \{\s*renderLaboratoryOptions\(\);/);
+  assert.match(app, /保留当前归属/);
+  assert.match(app, /\.\.\.\(document\.querySelector\("#edit-equipment-laboratory"\)\.value \?/);
+  assert.doesNotMatch(html, /id="edit-equipment-laboratory" required/);
+});

@@ -679,6 +679,39 @@ test("production seed mode keeps reference data but omits demo users", () => {
   database.close();
 });
 
+test("manages laboratories for administrators and hides inactive spaces from normal listings", () => {
+  const database = createDatabase(":memory:");
+  const service = createService(database);
+  const developer = service.listUsers().find((user) => user.role === "developer");
+  const admin = service.createUser({ displayName: "实验室管理员", username: "labadmin", role: "admin" }, developer);
+  const created = service.createLaboratory({ code: "lab-09", name: "新建实验室", alias: "实验室九", sortOrder: 90 }, admin);
+  assert.equal(created.code, "LAB-09");
+  assert.equal(created.active, true);
+  assert.equal(created.sortOrder, 90);
+  assert.ok(service.listLaboratories().some((item) => item.id === created.id));
+  const linkedEquipment = service.createEquipment({ name: "实验室联动设备", code: "LAB-LINK-001", metric: "测试", lab: created.name, owner: "管理员" }, admin);
+
+  const updated = service.updateLaboratory(created.id, { name: "已编辑实验室", alias: "新空间", active: false }, admin);
+  assert.equal(service.getEquipment(linkedEquipment.id).lab, "已编辑实验室");
+  assert.equal(service.getEquipment(linkedEquipment.id).location, "已编辑实验室");
+  assert.equal(updated.name, "已编辑实验室");
+  assert.equal(updated.active, false);
+  assert.equal(service.listLaboratories().some((item) => item.id === created.id), false);
+  assert.equal(service.listLaboratories({ includeInactive: true }).find((item) => item.id === created.id).active, false);
+  assert.throws(
+    () => service.createLaboratory({ code: "LAB-09", name: "另一个实验室", alias: "重复编号" }, admin),
+    (error) => error instanceof AppError && error.status === 409 && error.code === "LABORATORY_EXISTS"
+  );
+  assert.throws(
+    () => service.createLaboratory({ code: "LAB-10", name: "无权实验室", alias: "普通用户" }, service.listUsers().find((user) => user.role === "member")),
+    (error) => error instanceof AppError && error.status === 403 && error.code === "FORBIDDEN"
+  );
+  const audit = service.listAuditLogs(developer, { entityType: "laboratory", paginated: false });
+  assert.equal(audit.length, 2);
+  assert.deepEqual(audit.map((item) => item.action).sort(), ["laboratory.create", "laboratory.update"]);
+  database.close();
+});
+
 test("requires an initial password change, rotates credentials, and revokes old sessions", async () => {
   const database = createDatabase(":memory:");
   const service = createService(database);
@@ -1017,5 +1050,45 @@ test("audits every supported business mutation without credential material", asy
     "reservation.create", "reservation.cancel", "room_reservation.create", "room_reservation.cancel"
   ]) assert.equal(actions.has(action), true, action);
   assert.equal(JSON.stringify(logs).includes(reset.temporaryPassword), false);
+  database.close();
+});
+
+test("inactive laboratories retain existing assignments but reject new assignments", () => {
+  const database = createDatabase(":memory:", { seed: false });
+  const service = createService(database);
+  const admin = service.createUser({ username: "labowner", displayName: "管理员", role: "admin" });
+  const lab = service.createLaboratory({ name: "归属实验室", code: "ASSIGN-01", alias: "空间" }, admin);
+  const member = service.createUser({ username: "labmember", displayName: "成员", role: "member", laboratoryId: lab.id }, admin);
+  const equipment = service.createEquipment({ name: "设备", code: "ASSIGN-EQ", metric: "测试", lab: lab.name, owner: "管理员" }, admin);
+  service.updateLaboratory(lab.id, { active: false }, admin);
+  assert.equal(service.updateUser(member.id, { ...member, displayName: "更新成员" }, admin).laboratoryId, lab.id);
+  assert.equal(service.updateEquipment(equipment.id, { laboratoryId: lab.id, owner: "新保管人" }, admin).lab, lab.name);
+  for (const operation of [
+    () => service.createEquipment({ name: "新设备", code: "ASSIGN-NEW", metric: "测试", lab: lab.name, owner: "管理员" }, admin),
+    () => service.createUser({ username: "newmember", displayName: "新成员", role: "member", laboratoryId: lab.id }, admin),
+    () => service.updateUser(admin.id, { ...admin, laboratoryId: lab.id }, admin)
+  ]) assert.throws(operation, (error) => error.code === "LABORATORY_NOT_FOUND");
+  service.updateLaboratory(lab.id, { active: true }, admin);
+  assert.equal(service.createUser({ username: "newmember", displayName: "新成员", role: "member", laboratoryId: lab.id }, admin).laboratoryId, lab.id);
+  database.close();
+});
+
+test("laboratory validation, update permissions and audit failure leave data unchanged", () => {
+  const database = createDatabase(":memory:", { seed: false });
+  const service = createService(database);
+  const admin = service.createUser({ username: "labmanager", displayName: "管理员", role: "admin" });
+  const member = service.createUser({ username: "labviewer", displayName: "成员", role: "member" });
+  const lab = service.createLaboratory({ name: "校验实验室", code: "VALID-01", alias: "校验" }, admin);
+  assert.equal(service.listAuditLogs(admin, { entityType: "laboratory" })[0].summary.sortOrder, lab.sortOrder);
+  assert.throws(() => service.updateLaboratory(lab.id, { name: "无权限改名" }, member), (error) => error.status === 403);
+  assert.throws(() => service.updateLaboratory("missing", {}, admin), (error) => error.status === 404);
+  for (const input of [{ name: " " }, { code: "" }, { sortOrder: -1 }, { sortOrder: 1.5 }, { active: "false" }]) {
+    assert.throws(() => service.updateLaboratory(lab.id, input, admin), (error) => error.code === "VALIDATION_ERROR");
+  }
+  const equipment = service.createEquipment({ name: "关联设备", code: "VALID-EQ", metric: "测试", lab: lab.name, owner: "管理员" }, admin);
+  database.exec("CREATE TRIGGER fail_lab_audit BEFORE INSERT ON audit_logs WHEN NEW.entity_type = 'laboratory' BEGIN SELECT RAISE(ABORT, 'audit failure'); END;");
+  assert.throws(() => service.updateLaboratory(lab.id, { name: "回滚改名" }, admin), /audit failure/);
+  assert.equal(service.listLaboratories()[0].name, lab.name);
+  assert.equal(service.getEquipment(equipment.id).lab, lab.name);
   database.close();
 });

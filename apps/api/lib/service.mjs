@@ -8,7 +8,7 @@ const creatableUserRoles = new Set(["admin", "member"]);
 const maintenanceTypes = new Set(["repair", "maintenance"]);
 const maintenanceStatuses = new Set(["open", "in_progress", "completed"]);
 const procurementStatuses = new Set(["pending", "accepted", "rejected"]);
-const auditEntityTypes = new Set(["equipment", "reservation", "room_reservation", "maintenance_record", "procurement_record", "user", "meeting_room", "system"]);
+const auditEntityTypes = new Set(["equipment", "reservation", "room_reservation", "maintenance_record", "procurement_record", "user", "meeting_room", "laboratory", "system"]);
 const statusLabels = {
   available: "可用",
   maintenance: "维修中",
@@ -162,6 +162,7 @@ function mapLaboratory(row) {
     name: row.name,
     alias: row.alias,
     label: `${row.name} - ${row.alias}`,
+    sortOrder: Number(row.sort_order),
     active: Boolean(row.is_active)
   };
 }
@@ -463,8 +464,84 @@ export function createService(database) {
       return mapUser(database.prepare(`${userSelect} WHERE u.id = ?`).get(userId));
     },
 
-    listLaboratories() {
-      return database.prepare("SELECT * FROM laboratories WHERE is_active = 1 ORDER BY sort_order, code").all().map(mapLaboratory);
+    listLaboratories({ includeInactive = false } = {}) {
+      return database.prepare(`SELECT * FROM laboratories ${includeInactive ? "" : "WHERE is_active = 1"} ORDER BY sort_order, code`).all().map(mapLaboratory);
+    },
+
+    createLaboratory(input, actor) {
+      if (!actor || !["developer", "admin"].includes(actor.role)) {
+        throw new AppError(403, "FORBIDDEN", "当前账号没有管理实验室的权限");
+      }
+      const laboratory = {
+        code: requiredText(input.code, "实验室编号", 40).toUpperCase(),
+        name: requiredText(input.name, "实验室名称", 100),
+        alias: requiredText(input.alias, "实验室别名", 100),
+        sortOrder: input.sortOrder === undefined || input.sortOrder === "" ? null : Number(input.sortOrder),
+        active: input.active === undefined ? true : input.active
+      };
+      if (laboratory.sortOrder !== null && (!Number.isSafeInteger(laboratory.sortOrder) || laboratory.sortOrder < 0 || laboratory.sortOrder > 999999)) {
+        throw new AppError(400, "VALIDATION_ERROR", "排序需要是 0 到 999999 之间的整数");
+      }
+      if (typeof laboratory.active !== "boolean") throw new AppError(400, "VALIDATION_ERROR", "实验室状态需要是布尔值");
+      const id = randomUUID();
+      const now = new Date().toISOString();
+      const sortOrder = laboratory.sortOrder ?? (database.prepare("SELECT COALESCE(MAX(sort_order), 0) + 1 AS next_sort_order FROM laboratories").get().next_sort_order);
+      try {
+        return transaction(() => {
+          database.prepare(`
+            INSERT INTO laboratories (id, code, name, alias, sort_order, is_active, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          `).run(id, laboratory.code, laboratory.name, laboratory.alias, sortOrder, laboratory.active ? 1 : 0, now, now);
+          writeAudit({ actor, entityType: "laboratory", entityId: id, action: "laboratory.create", summary: { ...laboratory, sortOrder } });
+          return mapLaboratory(database.prepare("SELECT * FROM laboratories WHERE id = ?").get(id));
+        });
+      } catch (error) {
+        if (String(error.message).includes("UNIQUE constraint failed: laboratories.code") || String(error.message).includes("UNIQUE constraint failed: laboratories.name")) {
+          throw new AppError(409, "LABORATORY_EXISTS", "实验室编号或名称已存在");
+        }
+        throw error;
+      }
+    },
+
+    updateLaboratory(id, input, actor) {
+      if (!actor || !["developer", "admin"].includes(actor.role)) {
+        throw new AppError(403, "FORBIDDEN", "当前账号没有管理实验室的权限");
+      }
+      const laboratoryId = requiredText(id, "实验室");
+      try {
+        return transaction(() => {
+          const existing = database.prepare("SELECT * FROM laboratories WHERE id = ?").get(laboratoryId);
+          if (!existing) throw new AppError(404, "LABORATORY_NOT_FOUND", "没有找到对应实验室");
+          if (input.active !== undefined && typeof input.active !== "boolean") throw new AppError(400, "VALIDATION_ERROR", "实验室状态需要是布尔值");
+          const next = {
+            code: input.code === undefined ? existing.code : requiredText(input.code, "实验室编号", 40).toUpperCase(),
+            name: input.name === undefined ? existing.name : requiredText(input.name, "实验室名称", 100),
+            alias: input.alias === undefined ? existing.alias : requiredText(input.alias, "实验室别名", 100),
+            sortOrder: input.sortOrder === undefined || input.sortOrder === "" ? existing.sort_order : Number(input.sortOrder),
+            active: input.active === undefined ? Boolean(existing.is_active) : input.active
+          };
+          if (!Number.isSafeInteger(next.sortOrder) || next.sortOrder < 0 || next.sortOrder > 999999) {
+            throw new AppError(400, "VALIDATION_ERROR", "排序需要是 0 到 999999 之间的整数");
+          }
+          const now = new Date().toISOString();
+          database.prepare(`
+            UPDATE laboratories
+            SET code = ?, name = ?, alias = ?, sort_order = ?, is_active = ?, updated_at = ?
+            WHERE id = ?
+          `).run(next.code, next.name, next.alias, next.sortOrder, next.active ? 1 : 0, now, laboratoryId);
+          if (next.name !== existing.name) {
+            database.prepare("UPDATE equipment SET lab = ?, location = CASE WHEN location = ? THEN ? ELSE location END, updated_at = ? WHERE lab = ?")
+              .run(next.name, existing.name, next.name, now, existing.name);
+          }
+          writeAudit({ actor, entityType: "laboratory", entityId: laboratoryId, action: "laboratory.update", summary: { before: mapLaboratory(existing), after: next } });
+          return mapLaboratory(database.prepare("SELECT * FROM laboratories WHERE id = ?").get(laboratoryId));
+        });
+      } catch (error) {
+        if (String(error.message).includes("UNIQUE constraint failed: laboratories.code") || String(error.message).includes("UNIQUE constraint failed: laboratories.name")) {
+          throw new AppError(409, "LABORATORY_EXISTS", "实验室编号或名称已存在");
+        }
+        throw error;
+      }
     },
 
     listUsers() {
@@ -556,7 +633,7 @@ export function createService(database) {
 
       const laboratoryId = typeof input.laboratoryId === "string" && input.laboratoryId.trim() ? input.laboratoryId.trim() : null;
       if (laboratoryId) {
-        const laboratory = database.prepare("SELECT id FROM laboratories WHERE id = ? AND is_active = 1").get(laboratoryId);
+        const laboratory = database.prepare("SELECT id FROM laboratories WHERE id = ? AND (is_active = 1 OR id = ?)").get(laboratoryId, target.laboratory_id || "");
         if (!laboratory) throw new AppError(400, "LABORATORY_NOT_FOUND", "所选实验室不存在或未启用");
       }
 
@@ -659,6 +736,8 @@ export function createService(database) {
       };
       try {
         return transaction(() => {
+          const laboratory = database.prepare("SELECT is_active FROM laboratories WHERE name = ?").get(item.lab);
+          if (laboratory && !laboratory.is_active) throw new AppError(400, "LABORATORY_NOT_FOUND", "所选实验室未启用，请刷新后重新选择");
           database.prepare(`
           INSERT INTO equipment (id, name, code, metric, lab, location, owner, status, icon, thumb, created_at, updated_at)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -694,7 +773,7 @@ export function createService(database) {
       };
       if (fields.includes("laboratoryId")) {
         const laboratoryId = requiredText(update.laboratoryId, "所在实验室");
-        const laboratory = database.prepare("SELECT name FROM laboratories WHERE id = ? AND is_active = 1").get(laboratoryId);
+        const laboratory = database.prepare("SELECT name FROM laboratories WHERE id = ? AND (is_active = 1 OR name = ?)").get(laboratoryId, existing.lab);
         if (!laboratory) throw new AppError(400, "LABORATORY_NOT_FOUND", "所选实验室不存在或未启用");
         item.lab = laboratory.name;
         item.location = laboratory.name;
