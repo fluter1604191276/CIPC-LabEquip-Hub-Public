@@ -1,4 +1,4 @@
-import { chmodSync, chownSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, chownSync, cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { tmpdir, userInfo } from "node:os";
 import { join, resolve } from "node:path";
@@ -91,7 +91,11 @@ async function runOnce() {
     if (compareVersions(targetVersion, oldVersion) <= 0) throw new Error("目标版本不是更新版本");
     mkdirSync(releasesDirectory, { recursive: true });
     const releaseDirectory = join(releasesDirectory, releaseStamp(targetVersion, request.id));
-    renameSync(release, releaseDirectory);
+    // The temporary directory may be mounted on a different filesystem than
+    // /opt. Copy instead of rename so upgrades work with /tmp tmpfs mounts.
+    mkdirSync(releaseDirectory, { recursive: true });
+    cpSync(release, releaseDirectory, { recursive: true, force: false, errorOnExist: true });
+    rmSync(release, { recursive: true, force: true });
     command("chmod", ["-R", "a+rX", releaseDirectory]);
     const legacyCurrentDirectory = currentIsDirectory();
     const previousDirectory = legacyCurrentDirectory ? join(releasesDirectory, `previous-${request.id}`) : "";

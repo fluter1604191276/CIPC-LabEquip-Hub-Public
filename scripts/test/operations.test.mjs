@@ -139,6 +139,12 @@ test("checks database integrity, backup freshness, disk capacity, and scheduled 
   } finally { rmSync(directory, { recursive: true, force: true }); }
 });
 
+test("upgrade agent copies releases across filesystems instead of renaming /tmp", () => {
+  const source = readFileSync(new URL("../upgrade-agent.mjs", import.meta.url), "utf8");
+  assert.match(source, /cpSync\(release, releaseDirectory/);
+  assert.match(source, /rmSync\(release, \{ recursive: true, force: true \}\)/);
+});
+
 test("fails when the API check is omitted or a touched backup filename is stale", async () => {
   const directory = mkdtempSync(join(tmpdir(), "cipc-operations-negative-test-"));
   try {
