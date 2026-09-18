@@ -1,0 +1,32 @@
+[Unit]
+Description=Laboratory Resource Hub automatic upgrade agent
+After=network-online.target docker.service cipc-labequip-api.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/cipc-labequip/current
+Environment=UPDATE_REPOSITORY=fluter1604191276/CIPC-LabEquip-Hub-Public
+Environment=UPDATE_BASE_DIR=/opt/cipc-labequip
+Environment=UPDATE_CURRENT_LINK=/opt/cipc-labequip/current
+Environment=UPDATE_RELEASES_DIR=/opt/cipc-labequip/releases
+Environment=UPDATE_REQUEST_FILE=/var/lib/cipc-labequip/data/upgrade/request.json
+Environment=UPDATE_STATUS_FILE=/var/lib/cipc-labequip/data/upgrade/status.json
+Environment=UPDATE_SERVICE_USER=cipc-labequip
+Environment=UPDATE_SERVICE_GROUP=cipc-labequip
+Environment=UPDATE_API_SERVICE=cipc-labequip-api.service
+Environment=UPDATE_COMPOSE_FILE=/opt/cipc-labequip/compose.yaml
+Environment=DATA_FILE=/var/lib/cipc-labequip/data/production.sqlite
+Environment=BACKUP_DIR=/var/lib/cipc-labequip/backups
+Environment=UPDATE_API_HEALTH_URL=http://127.0.0.1:4000/api/health
+Environment=UPDATE_WEB_HEALTH_URL=http://127.0.0.1:8020/healthz
+ExecStart=/usr/local/bin/node /opt/cipc-labequip/current/scripts/upgrade-agent.mjs --once
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full
+ReadWritePaths=/opt/cipc-labequip /var/lib/cipc-labequip
+
+[Install]
+WantedBy=multi-user.target

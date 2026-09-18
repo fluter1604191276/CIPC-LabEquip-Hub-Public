@@ -106,3 +106,14 @@ test("laboratory saves reload derived data and retain legacy equipment assignmen
   assert.match(app, /\.\.\.\(document\.querySelector\("#edit-equipment-laboratory"\)\.value \?/);
   assert.doesNotMatch(html, /id="edit-equipment-laboratory" required/);
 });
+
+
+test("developer-only update center has check and apply controls", () => {
+  assert.match(html, /data-view="update"/);
+  assert.match(app, /update: "update-view"/);
+  assert.match(html, /id="update-check"/);
+  assert.match(html, /id="update-apply"/);
+  assert.match(app, /apiRequest\("\/update\/check"\)/);
+  assert.match(app, /apiRequest\("\/update", \{ method: "POST"/);
+  assert.match(app, /update: "系统升级"/);
+});

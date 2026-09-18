@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="./styles.css?v=1.3.1" />
+    <link rel="stylesheet" href="./styles.css?v=1.4.0" />
   </head>
   <body class="auth-pending">
     <a class="skip-link" href="#main-content">跳至主内容</a>
@@ -84,6 +84,7 @@
           <span class="nav-label">管理</span>
           <button class="nav-item" data-view="members" type="button"><span class="nav-icon">♙</span>成员与权限</button>
           <button class="nav-item" data-view="audit" type="button"><span class="nav-icon">◫</span>操作审计</button>
+          <button class="nav-item" data-view="update" type="button"><span class="nav-icon">↻</span>系统升级</button>
         </nav>
 
         <div class="sidebar-footer">
@@ -268,6 +269,12 @@
             <section class="page-heading"><div><p class="kicker">PEOPLE & ACCESS</p><h1>成员与权限 <span>✦</span></h1><p class="subtitle">查看已创建账号、角色和实验室基础信息。</p></div><button class="primary-button" id="open-member-form" type="button"><span>＋</span> 新增成员</button></section>
             <section class="member-grid"><div class="member-summary panel"><span class="stat-icon orange-icon">♙</span><strong id="member-count">0</strong><small>已创建账号</small></div><div class="member-summary panel"><span class="stat-icon green-icon">✓</span><strong id="member-role-count">0</strong><small>普通用户</small></div><div class="member-summary panel"><span class="stat-icon blue-icon">⌁</span><strong id="laboratory-count">0</strong><small>实验室与空间</small></div></section>
             <div class="access-grid"><article class="panel members-panel"><div class="panel-heading"><div><h2>成员账号</h2><p>账号由管理员统一创建，不开放注册</p></div><label class="search-box"><span>⌕</span><input id="member-search" type="search" placeholder="搜索姓名或用户名" /></label></div><div class="members-list" id="members-list"></div></article><article class="panel laboratory-panel"><div class="panel-heading"><div><h2>实验室与空间</h2><p>管理实验室、空间及其开放状态</p></div><button class="secondary-button manager-only" id="open-laboratory-form" type="button"><span>＋</span> 新增实验室</button></div><div class="laboratory-list" id="laboratory-list"></div></article></div>
+          </section>
+
+          <section class="workspace-view" id="update-view">
+            <section class="page-heading"><div><p class="kicker">RELEASE MANAGEMENT</p><h1>系统升级 <span>✦</span></h1><p class="subtitle">仅开发者可用。先检查稳定版，再由服务器执行备份、测试、切换与验证。</p></div><button class="secondary-button" id="update-check" type="button">检查更新</button></section>
+            <section class="update-grid"><article class="panel update-summary-card"><p class="kicker">VERSION STATUS</p><h2 id="update-current-version">当前版本：—</h2><strong id="update-latest-version">尚未检查版本</strong><p id="update-summary">点击“检查更新”获取版本信息。</p><div class="update-actions"><button class="primary-button" id="update-apply" type="button" disabled>备份并升级</button></div></article><article class="panel update-task-card"><div class="panel-heading"><div><h2>升级任务</h2><p id="update-status">暂无升级任务</p></div></div><ol class="update-steps"><li>检查版本与兼容性</li><li>创建数据库快照</li><li>运行测试并切换代码</li><li>检查 API、网页和数据完整性</li></ol></article></section>
+            <article class="panel update-notes-card"><div class="panel-heading"><div><h2>版本说明</h2><p>正式版本才会出现在这里，开发分支不会自动部署。</p></div></div><pre id="update-release-notes">暂无更新说明</pre></article>
           </section>
 
           <section class="workspace-view" id="audit-view">
@@ -538,6 +545,6 @@
       </section>
     </div>
     <div class="toast" id="toast" role="status"><span class="toast-check">✓</span><span id="toast-message"></span></div>
-    <script src="./app.js?v=1.3.1"></script>
+    <script src="./app.js?v=1.4.0"></script>
   </body>
 </html>

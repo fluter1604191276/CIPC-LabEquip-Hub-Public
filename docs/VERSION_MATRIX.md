@@ -2,17 +2,19 @@
 
 核对日期：2026-09-18。
 
+> 当前开发发布为 v1.4.0；原公网生产记录仍为 v1.3.1，学校升级由管理员自主安排。
+
 | 位置 | 版本 | 说明 |
 | --- | --- | --- |
 | 原公网生产环境 | `v1.3.1` | 2026-09-18 14:29（北京时间）升级并验证；release `20260918T062621Z-v1.3.1-c72cad3`。上一版 `20260917T061500Z-v1.3.0-dd2b935` 保留回滚。 |
-| 内部历史仓库 `CIPC-LabEquip-Hub` | `v1.3.1` | 保留历史追溯，仓库维持 Private。 |
-| 公开部署仓库 `CIPC-LabEquip-Hub-Public` | `v1.3.1` | 在独立公开历史上追加更新，未引入内部历史；供老师选择升级。 |
+| 内部历史仓库 `CIPC-LabEquip-Hub` | `v1.4.0` 开发发布 | 保留历史追溯，仓库维持 Private。 |
+| 公开部署仓库 `CIPC-LabEquip-Hub-Public` | `v1.4.0` 待发布 | 公开仓库将在完整测试后追加升级中心版本。 |
 | 学校机房已部署环境 | 用户报告已部署；此前发布为 `v1.3.0` | 本轮未连接或升级学校主机；实际运行版本由校方确认。 |
 
 老师应固定使用发布标签：
 
 ```bash
-git clone --branch v1.3.1 --depth 1 \
+git clone --branch v1.4.0 --depth 1 \
   https://github.com/fluter1604191276/CIPC-LabEquip-Hub-Public.git \
   /opt/cipc-labequip/current
 ```

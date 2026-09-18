@@ -494,6 +494,29 @@ test("restricts laboratory management to administrators and supports inactive li
   assert.equal(memberManagerList.status, 403);
 });
 
+test("exposes the developer-only update center and queues a verified release", async (t) => {
+  const manager = {
+    repository: "example/project",
+    getStatus: () => ({ state: "idle", currentVersion: "1.3.1", message: "暂无升级任务" }),
+    check: async () => ({ currentVersion: "1.3.1", latestVersion: "1.4.0", updateAvailable: true, repository: "example/project", releaseNotes: "测试更新" }),
+    requestUpgrade: async (version, actor) => ({ state: "queued", targetVersion: version, actor: actor.username, requestId: "request-1" })
+  };
+  const { service, baseUrl } = await httpFixture(t, { updateManager: manager });
+  const developer = service.listUsers().find((user) => user.username === "developer");
+  const member = service.listUsers().find((user) => user.username === "member01");
+  await service.changePassword(developer.id, "123456", "UpdateDeveloper2026");
+  await service.changePassword(member.id, "123456", "UpdateMember2026");
+  const developerSession = await login(baseUrl, "developer", "UpdateDeveloper2026");
+  const memberSession = await login(baseUrl, "member01", "UpdateMember2026");
+  assert.equal((await (await fetch(`${baseUrl}/api/update/check`, { headers: { Cookie: memberSession.cookie } })).json()).error.code, "FORBIDDEN");
+  const check = await fetch(`${baseUrl}/api/update/check`, { headers: { Cookie: developerSession.cookie } });
+  assert.equal(check.status, 200);
+  assert.equal((await check.json()).data.latestVersion, "1.4.0");
+  const queued = await fetch(`${baseUrl}/api/update`, { method: "POST", headers: { Cookie: developerSession.cookie, "Content-Type": "application/json" }, body: JSON.stringify({ version: "1.4.0" }) });
+  assert.equal(queued.status, 202);
+  assert.equal((await queued.json()).data.state, "queued");
+});
+
 test("lets every business role access maintenance and procurement records", async (t) => {
   const { service, baseUrl } = await httpFixture(t);
   const member = service.listUsers().find((user) => user.username === "member01");

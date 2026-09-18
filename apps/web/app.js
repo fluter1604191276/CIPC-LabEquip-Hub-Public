@@ -1,10 +1,10 @@
 const statusClasses = { available: "status-available", maintenance: "status-maintenance", disabled: "status-disabled", retired: "status-retired" };
 const statusLabels = { available: "可用", maintenance: "维修中", disabled: "已停用", retired: "已报废" };
 const reservationStatusLabels = { approved: "未开始", in_use: "使用中", completed: "已完成", cancelled: "已取消" };
-const viewMap = { overview: "overview-view", equipment: "equipment-view", calendar: "calendar-view-page", "my-reservations": "my-reservations-view", "meeting-rooms": "meeting-rooms-view", maintenance: "maintenance-view", records: "records-view", members: "members-view", audit: "audit-view" };
-const viewLabels = { overview: "总览", equipment: "设备台账", calendar: "预约日历", "my-reservations": "我的预约", "meeting-rooms": "会议室预约", maintenance: "维修与保养", records: "采购记录", members: "成员与权限", audit: "操作审计" };
+const viewMap = { overview: "overview-view", equipment: "equipment-view", calendar: "calendar-view-page", "my-reservations": "my-reservations-view", "meeting-rooms": "meeting-rooms-view", maintenance: "maintenance-view", records: "records-view", members: "members-view", audit: "audit-view", update: "update-view" };
+const viewLabels = { overview: "总览", equipment: "设备台账", calendar: "预约日历", "my-reservations": "我的预约", "meeting-rooms": "会议室预约", maintenance: "维修与保养", records: "采购记录", members: "成员与权限", audit: "操作审计", update: "系统升级" };
 const roleDefinitions = {
-  developer: { label: "开发者权限", avatar: "D", views: ["overview", "calendar", "my-reservations", "meeting-rooms", "equipment", "maintenance", "records", "members", "audit"], guideSections: ["start", "equipment", "reservation", "records", "access", "faq"] },
+  developer: { label: "开发者权限", avatar: "D", views: ["overview", "calendar", "my-reservations", "meeting-rooms", "equipment", "maintenance", "records", "members", "audit", "update"], guideSections: ["start", "equipment", "reservation", "records", "access", "faq"] },
   admin: { label: "系统管理员", avatar: "管", views: ["overview", "calendar", "my-reservations", "meeting-rooms", "equipment", "maintenance", "records", "members", "audit"], guideSections: ["start", "equipment", "reservation", "records", "access", "faq"] },
   member: { label: "普通用户", avatar: "用", views: ["overview", "calendar", "my-reservations", "meeting-rooms", "equipment", "maintenance", "records"], guideSections: ["start", "equipment", "reservation", "records", "faq"] }
 };
@@ -40,6 +40,8 @@ let calendarMode = "overview";
 let calendarResourceFilter = "all";
 let selectedCalendarResourceKey = "";
 let expandedCalendarDate = "";
+let updateInfo = null;
+let updateStatus = null;
 
 const table = document.querySelector("#equipment-table");
 const searchInput = document.querySelector("#equipment-search");
@@ -906,6 +908,28 @@ function renderAccessData() {
     : `<div class="empty-state compact"><strong>暂无实验室</strong><span>请联系管理员添加可用空间。</span></div>`;
 }
 
+function renderUpdateCenter() {
+  const current = document.querySelector("#update-current-version");
+  const latest = document.querySelector("#update-latest-version");
+  const summary = document.querySelector("#update-summary");
+  const button = document.querySelector("#update-apply");
+  const status = document.querySelector("#update-status");
+  if (!current) return;
+  const currentVersion = updateInfo?.currentVersion || updateStatus?.currentVersion;
+  current.textContent = `当前版本：${currentVersion ? `v${currentVersion}` : "—"}`;
+  latest.textContent = updateInfo ? `最新稳定版：v${updateInfo.latestVersion}` : "尚未检查版本";
+  summary.textContent = updateInfo?.updateAvailable ? `发现 v${updateInfo.latestVersion}，请先阅读更新说明再执行升级。` : updateInfo ? "当前已经是最新稳定版。" : "点击“检查更新”获取版本信息。";
+  button.disabled = !updateInfo?.updateAvailable || ["queued", "running"].includes(updateStatus?.state);
+  button.textContent = updateStatus?.state === "running" ? "升级执行中…" : updateStatus?.state === "queued" ? "升级任务已排队" : "备份并升级";
+  status.textContent = updateStatus?.message || "暂无升级任务";
+  document.querySelector("#update-release-notes").textContent = updateInfo?.releaseNotes || "暂无更新说明";
+}
+
+async function refreshUpdateStatus() {
+  updateStatus = await apiRequest("/update/status");
+  renderUpdateCenter();
+}
+
 function renderAll() {
   refreshReservationOptions();
   renderEquipment();
@@ -920,6 +944,7 @@ function renderAll() {
   renderAccessData();
   renderMyReservations();
   renderAuditLogs();
+  renderUpdateCenter();
 }
 
 function showToast(message, tone = "success") {
@@ -1430,10 +1455,13 @@ async function loadApplicationData() {
   const laboratoriesPath = ["developer", "admin"].includes(actualRole) ? "/laboratories?includeInactive=true" : "/laboratories";
   const requests = [apiRequest("/equipment"), apiRequest("/reservations"), apiRequest(laboratoriesPath), apiRequest(roomsPath), apiRequest("/room-reservations"), apiRequest("/maintenance-records"), apiRequest("/procurement-records"), apiRequest("/my-reservations")];
   if (actualRole === "developer" || actualRole === "admin") requests.push(apiRequest("/users"), apiRequest(`/audit-logs?page=1&pageSize=${auditPagination.pageSize}`));
+  if (actualRole === "developer") requests.push(apiRequest("/update/status"));
   const result = await Promise.all(requests);
   [equipment, reservations, laboratories, meetingRooms, roomReservations, maintenanceRecords, procurementRecords] = result;
   myReservations = result[7] || [];
   users = result[8] || [];
+  const updateStatusResult = actualRole === "developer" ? result[10] : null;
+  updateStatus = updateStatusResult || updateStatus;
   const auditResult = result[9] || { items: [], pagination: auditPagination };
   auditLogs = auditResult.items || [];
   auditPagination = auditResult.pagination || auditPagination;
@@ -2215,6 +2243,19 @@ guideModal.addEventListener("click", (event) => {
   if (!button) return;
   setGuideModal(false);
   document.querySelector(`[data-view="${button.dataset.targetView}"]`).click();
+});
+
+document.querySelector("#update-check").addEventListener("click", async () => {
+  const button = document.querySelector("#update-check"); button.disabled = true;
+  try { updateInfo = await apiRequest("/update/check"); renderUpdateCenter(); showToast(updateInfo.updateAvailable ? `发现 v${updateInfo.latestVersion}` : "当前已经是最新版本"); }
+  catch (error) { showToast(error.message || "检查更新失败", "error"); }
+  finally { button.disabled = false; }
+});
+document.querySelector("#update-apply").addEventListener("click", async () => {
+  if (!updateInfo?.updateAvailable || !window.confirm(`确认备份并升级到 v${updateInfo.latestVersion}？升级期间系统会短暂不可用。`)) return;
+  const button = document.querySelector("#update-apply"); button.disabled = true;
+  try { updateStatus = await apiRequest("/update", { method: "POST", body: JSON.stringify({ version: updateInfo.latestVersion }) }); renderUpdateCenter(); showToast("升级任务已提交"); }
+  catch (error) { showToast(error.message || "升级任务提交失败", "error"); button.disabled = false; }
 });
 
 document.querySelector("#login-form").addEventListener("submit", async (event) => {

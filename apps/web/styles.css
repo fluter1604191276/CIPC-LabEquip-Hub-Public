@@ -4398,3 +4398,13 @@ button:disabled {
   }
 }
 @media (max-width: 560px) { .meeting-room-grid { grid-template-columns: 1fr; } .meeting-room-card { min-height: 218px; } .upcoming-item { align-items: flex-start; flex-wrap: wrap; } .upcoming-item .cancel-reservation { margin-left: 53px; } }
+
+.update-grid { display:grid; grid-template-columns: minmax(0,1fr) minmax(280px,.8fr); gap:18px; margin-bottom:18px; }
+.update-summary-card, .update-task-card, .update-notes-card { padding:24px; }
+.update-summary-card h2 { margin:10px 0 8px; font-size:22px; }
+.update-summary-card > strong { color:var(--orange); font-size:13px; }
+.update-summary-card > p { max-width:520px; color:#74808d; line-height:1.7; }
+.update-actions { margin-top:22px; }
+.update-steps { margin:10px 0 0; padding-left:22px; color:#697483; line-height:2; }
+.update-notes-card pre { white-space:pre-wrap; color:#697483; font:inherit; line-height:1.7; min-height:120px; }
+@media (max-width:760px) { .update-grid { grid-template-columns:1fr; } .update-summary-card, .update-task-card, .update-notes-card { padding:18px; } }

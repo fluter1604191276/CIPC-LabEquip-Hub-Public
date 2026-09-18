@@ -64,16 +64,22 @@ test("checks database integrity, backup freshness, disk capacity, and scheduled 
     const timerPath = new URL("../../deploy/vps/cipc-labequip-operations.timer", import.meta.url);
     const backupServicePath = new URL("../../deploy/vps/cipc-labequip-backup.service", import.meta.url);
     const apiServicePath = new URL("../../deploy/vps/cipc-labequip-api.service", import.meta.url);
+    const upgradeServicePath = new URL("../../deploy/lan/cipc-labequip-upgrade.service", import.meta.url);
+    const upgradePathPath = new URL("../../deploy/lan/cipc-labequip-upgrade.path", import.meta.url);
     const bootstrapPath = new URL("../bootstrap-admin.mjs", import.meta.url);
     assert.equal(existsSync(servicePath), true);
     assert.equal(existsSync(timerPath), true);
     assert.equal(existsSync(backupServicePath), true);
     assert.equal(existsSync(apiServicePath), true);
+    assert.equal(existsSync(upgradeServicePath), true);
+    assert.equal(existsSync(upgradePathPath), true);
     assert.equal(existsSync(bootstrapPath), true);
     const serviceUnit = readFileSync(servicePath, "utf8");
     const timerUnit = readFileSync(timerPath, "utf8");
     const backupServiceUnit = readFileSync(backupServicePath, "utf8");
     const apiServiceUnit = readFileSync(apiServicePath, "utf8");
+    const upgradeServiceUnit = readFileSync(upgradeServicePath, "utf8");
+    const upgradePathUnit = readFileSync(upgradePathPath, "utf8");
     const lanNginxPath = new URL("../../deploy/lan/nginx.conf", import.meta.url);
     const lanComposePath = new URL("../../deploy/lan/compose.yaml", import.meta.url);
     const lanApiServicePath = new URL("../../deploy/lan/cipc-labequip-api.service", import.meta.url);
@@ -126,6 +132,9 @@ test("checks database integrity, backup freshness, disk capacity, and scheduled 
     assert.match(backupServiceUnit, /^ReadWritePaths=\/var\/lib\/cipc-labequip\/backups$/m);
     assert.doesNotMatch(backupServiceUnit, /^ReadOnlyPaths=\/var\/lib\/cipc-labequip\/data$/m);
     assert.match(apiServiceUnit, /^Environment=TRUST_PROXY=true$/m);
+    assert.match(upgradeServiceUnit, /^ExecStart=\/usr\/bin\/node \/opt\/cipc-labequip\/current\/scripts\/upgrade-agent\.mjs --once$/m);
+    assert.match(upgradeServiceUnit, /^Environment=UPDATE_REPOSITORY=fluter1604191276\/CIPC-LabEquip-Hub-Public$/m);
+    assert.match(upgradePathUnit, /^PathExists=\/var\/lib\/cipc-labequip\/data\/upgrade\/request\.json$/m);
     assert.match(apiServiceUnit, /^Environment=SEED_DEMO_USERS=false$/m);
   } finally { rmSync(directory, { recursive: true, force: true }); }
 });

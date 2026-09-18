@@ -24,3 +24,35 @@
 - Node.js 由 Ubuntu NodeSource 安装到 `/usr/bin/node`。
 
 部署前需要把防火墙和 `nginx.conf` 白名单收窄到学校实际网段，并优先申请 DHCP 静态租约或校内 DNS 名称。
+
+## 开发者一键升级通道（v1.4.0 起）
+
+升级中心不是网页直接执行 shell 命令，而是“网页提交请求 + systemd 升级代理执行”。首次部署或升级到 v1.4.0 时安装一次：
+
+```bash
+cd /opt/cipc-labequip/current
+sudo install -d -o cipc-labequip -g cipc-labequip /var/lib/cipc-labequip/data/upgrade
+sudo install -m 0644 deploy/lan/cipc-labequip-upgrade.service /etc/systemd/system/cipc-labequip-upgrade.service
+sudo install -m 0644 deploy/lan/cipc-labequip-upgrade.path /etc/systemd/system/cipc-labequip-upgrade.path
+sudo systemctl daemon-reload
+sudo systemctl enable --now cipc-labequip-upgrade.path
+```
+
+以后登录开发者账号，打开“系统升级”：
+
+1. 点击“检查更新”；
+2. 阅读正式版本说明；
+3. 点击“备份并升级”；
+4. 等待任务状态变为完成。
+
+升级代理会固定读取公开稳定版本，创建 SQLite 快照，下载版本并运行测试，再切换 release、重启 API、重建 Web 容器和执行健康检查。失败时会尝试恢复上一代码 release；数据库不会自动回滚。
+
+查看升级日志：
+
+```bash
+sudo systemctl status cipc-labequip-upgrade.service
+sudo journalctl -u cipc-labequip-upgrade.service -n 100 --no-pager
+cat /var/lib/cipc-labequip/data/upgrade/status.json
+```
+
+升级期间页面可能短暂显示网络错误，刷新后查看状态即可。升级代理使用 root 运行是因为它需要切换 release、重启 systemd 服务和重建 Docker 容器；网页本身不会直接获得这些权限。

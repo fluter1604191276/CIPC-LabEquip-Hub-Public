@@ -169,3 +169,18 @@ OnFailure=SITE_ALERT_UNIT.service
 ```
 
 Then run `sudo systemctl daemon-reload` and induce a controlled check failure to verify delivery. Keep credentials in the alert unit's protected environment or credential store rather than in this repository or the operations result.
+
+## Developer upgrade center
+
+Install the one-shot upgrade service and path watcher once from a v1.4.0-or-newer release:
+
+```bash
+cd /opt/cipc-labequip/current
+sudo install -d -o cipc-labequip -g cipc-labequip /var/lib/cipc-labequip/data/upgrade
+sudo install -m 0644 deploy/vps/cipc-labequip-upgrade.service /etc/systemd/system/cipc-labequip-upgrade.service
+sudo install -m 0644 deploy/vps/cipc-labequip-upgrade.path /etc/systemd/system/cipc-labequip-upgrade.path
+sudo systemctl daemon-reload
+sudo systemctl enable --now cipc-labequip-upgrade.path
+```
+
+The developer-only “系统升级” page checks the stable public release, queues a request, and lets the root-owned systemd agent perform the database backup, release tests, service switch, health checks, and code rollback. Database rollback remains a separate, deliberate restore operation.

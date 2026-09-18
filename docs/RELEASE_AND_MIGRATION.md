@@ -252,3 +252,40 @@ git diff --check
 - 生产域名、Cloudflare/Caddy 配置是否确实允许公开；
 - 生产数据库、备份、临时密码和私钥没有进入 Git 历史；
 - 发布标签对应的提交已经推送，并且老师能从标签复现部署。
+
+## v1.3.0/v1.3.1 快速升级到 v1.4.0
+
+如果学校已经按旧版部署，最简单的方式是在服务器执行下面的命令。它会自动备份数据库、获取 v1.4.0、运行测试、更新 API 单元、安装升级中心并重建 Web；不会覆盖 `/opt/cipc-labequip/nginx.conf`，也不会删除生产数据库：
+
+```bash
+cd /opt/cipc-labequip/current
+git fetch --tags origin
+git show v1.4.0:scripts/upgrade-lan-from-v1.3.sh > /tmp/upgrade-lan-from-v1.3.sh
+sudo bash /tmp/upgrade-lan-from-v1.3.sh v1.4.0
+```
+
+升级完成后，开发者进入“成员与权限 → 系统升级”即可进行后续版本升级。升级失败时脚本会尝试恢复升级前的代码提交；数据库快照位于 `/var/lib/cipc-labequip/backups`。
+
+## 开发者升级中心（v1.4.0 起）
+
+学校部署升级到 v1.4.0 后，可以安装一次升级代理：
+
+```bash
+cd /opt/cipc-labequip/current
+sudo install -d -o cipc-labequip -g cipc-labequip /var/lib/cipc-labequip/data/upgrade
+sudo install -m 0644 deploy/lan/cipc-labequip-upgrade.service /etc/systemd/system/cipc-labequip-upgrade.service
+sudo install -m 0644 deploy/lan/cipc-labequip-upgrade.path /etc/systemd/system/cipc-labequip-upgrade.path
+sudo systemctl daemon-reload
+sudo systemctl enable --now cipc-labequip-upgrade.path
+```
+
+安装后，开发者进入“系统升级”页面即可检查稳定版并提交升级。服务器上的 `cipc-labequip-upgrade.path` 监听升级请求，`cipc-labequip-upgrade.service` 负责：
+
+- 校验目标版本是公开仓库的稳定标签；
+- 创建经过完整性检查的数据库快照；
+- 下载版本并运行语法检查和全量测试；
+- 停止服务、切换 release、启动 API、重建 Web；
+- 检查 API、Nginx 和数据库；
+- 失败时恢复上一代码 release，并把结果写入 `status.json`。
+
+升级代理不删除数据库，也不执行数据库降级。网页升级期间如果暂时显示网络错误，刷新页面查看任务状态即可。若代理安装不完整，系统升级页面会显示“升级服务未配置”，不影响原有业务。

@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 import { createDatabase } from "./lib/database.mjs";
 import { AppError, createService } from "./lib/service.mjs";
+import { createUpdateManager } from "./lib/update.mjs";
 
 const defaultDataFile = fileURLToPath(new URL("./data/development.sqlite", import.meta.url));
 const defaultOrigins = "http://localhost:3000,http://127.0.0.1:3000";
@@ -145,7 +146,8 @@ export function createApp(service, {
   trustProxy = false,
   loginLimiter = createFailureLimiter(),
   loginSourceLimiter = createFailureLimiter({ maxFailures: 25 }),
-  passwordChangeLimiter = createFailureLimiter({ errorCode: "PASSWORD_CHANGE_RATE_LIMITED", errorMessage: "当前密码错误次数过多，请稍后再试" })
+  passwordChangeLimiter = createFailureLimiter({ errorCode: "PASSWORD_CHANGE_RATE_LIMITED", errorMessage: "当前密码错误次数过多，请稍后再试" }),
+  updateManager = null
 } = {}) {
   function requireUser(request, { allowPasswordChange = false, roles } = {}) {
     const user = service.getSessionUser(parseCookies(request)[cookieName]);
@@ -204,6 +206,29 @@ export function createApp(service, {
 
       if (request.method === "GET" && url.pathname === "/api/auth/session") {
         sendJson(response, 200, { data: requireUser(request, { allowPasswordChange: true }) }, corsHeaders);
+        return;
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/update/status") {
+        requireUser(request, { roles: ["developer"] });
+        sendJson(response, 200, { data: updateManager ? updateManager.getStatus() : { state: "disabled", message: "升级服务未配置" } }, corsHeaders);
+        return;
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/update/check") {
+        requireUser(request, { roles: ["developer"] });
+        if (!updateManager) throw new AppError(503, "UPDATE_DISABLED", "升级服务未配置");
+        sendJson(response, 200, { data: await updateManager.check() }, corsHeaders);
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/update") {
+        const actor = requireUser(request, { roles: ["developer"] });
+        if (!updateManager) throw new AppError(503, "UPDATE_DISABLED", "升级服务未配置");
+        const input = await readJson(request);
+        const result = await updateManager.requestUpgrade(input.version, actor);
+        service.recordSystemEvent("system.update_requested", { version: result.targetVersion, repository: updateManager.repository, requestId: result.requestId }, actor);
+        sendJson(response, 202, { data: result }, corsHeaders);
         return;
       }
 
@@ -447,11 +472,18 @@ export function startServer({
 } = {}) {
   const database = createDatabase(dataFile, { seedReferenceData: true, seedUsers });
   const service = createService(database);
+  const updateManager = process.env.UPDATE_ENABLED === "true" ? createUpdateManager({
+    repository: process.env.UPDATE_REPOSITORY,
+    currentVersion: process.env.APP_VERSION || "1.4.0",
+    requestFile: process.env.UPDATE_REQUEST_FILE || "/var/lib/cipc-labequip/data/upgrade/request.json",
+    statusFile: process.env.UPDATE_STATUS_FILE || "/var/lib/cipc-labequip/data/upgrade/status.json"
+  }) : null;
   const allowedOrigins = new Set((process.env.CORS_ORIGINS || defaultOrigins).split(",").map((item) => item.trim()).filter(Boolean));
   const server = createApp(service, {
     allowedOrigins,
     secureCookie: resolveCookieSecure(),
-    trustProxy: process.env.TRUST_PROXY === "true"
+    trustProxy: process.env.TRUST_PROXY === "true",
+    updateManager
   });
   server.listen(port, "127.0.0.1", () => {
     console.log(`Laboratory Resource Hub API: http://localhost:${port}`);
