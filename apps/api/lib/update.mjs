@@ -68,10 +68,10 @@ export function createUpdateManager({
     return response.json();
   }
 
-  async function resolveCommitSha(release, latestVersion) {
+  async function resolveCommitSha(release, latestVersion, releaseTag) {
     const embeddedSha = release?.commit?.sha || release?.target_commitish;
     if (commitShaPattern.test(String(embeddedSha || "").trim())) return assertCommitSha(embeddedSha);
-    const commit = await githubJson(githubUrl(normalizedRepository, `/commits/v${latestVersion}`));
+    const commit = await githubJson(githubUrl(normalizedRepository, `/commits/${encodeURIComponent(releaseTag || `v${latestVersion}`)}`));
     return assertCommitSha(commit?.sha);
   }
 
@@ -95,11 +95,14 @@ export function createUpdateManager({
         commit: candidate.commit
       };
     }
-    const latestVersion = assertStable(release.tag_name || release.name);
-    const commitSha = await resolveCommitSha(release, latestVersion);
+    const releaseTag = String(release.tag_name || release.name || "").trim();
+    if (!releaseTag) throw new Error("版本仓库未返回稳定标签");
+    const latestVersion = assertStable(releaseTag);
+    const commitSha = await resolveCommitSha(release, latestVersion, releaseTag);
     return {
       currentVersion: normalizedCurrentVersion,
       latestVersion,
+      tagName: releaseTag,
       commitSha,
       updateAvailable: compareVersions(latestVersion, normalizedCurrentVersion) > 0,
       repository: normalizedRepository,
@@ -124,6 +127,7 @@ export function createUpdateManager({
     const request = {
       id: randomUUID(),
       version: targetVersion,
+      tagName: latest.tagName,
       commitSha: latest.commitSha,
       repository: normalizedRepository,
       requestedAt: new Date().toISOString(),

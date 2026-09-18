@@ -32,10 +32,22 @@ function readJson(path) { return JSON.parse(readFileSync(path, "utf8")); }
 function readStatus() { try { return readJson(statusFile); } catch { return null; } }
 function recoverOrphanedStatus() {
   const status = readStatus();
-  if (!status || !["queued", "running"].includes(status.state)) return;
+  if (!status || !["queued", "running"].includes(status.state)) return false;
   const updatedAt = Date.parse(status.updatedAt || status.requestedAt || "");
-  if (!Number.isFinite(updatedAt) || Date.now() - updatedAt < staleStatusMs) return;
-  statusMessage("failed", "升级任务超时或请求文件缺失，已自动恢复为失败状态", { requestId: status.requestId || "unknown", targetVersion: status.targetVersion, previousRelease: status.previousRelease });
+  if (!Number.isFinite(updatedAt) || Date.now() - updatedAt < staleStatusMs) return false;
+  let request = null;
+  try { if (existsSync(requestFile)) request = readJson(requestFile); } catch { /* quarantine below */ }
+  const requestId = request?.id || status.requestId || "unknown";
+  const quarantinedRequest = quarantineRequest("stale", requestId);
+  statusMessage("failed", "升级任务超时，已自动恢复为失败状态", {
+    requestId,
+    currentVersion: status.currentVersion || null,
+    targetVersion: status.targetVersion || request?.version || null,
+    commitSha: status.commitSha || request?.commitSha || null,
+    previousRelease: status.previousRelease || null,
+    quarantinedRequest
+  });
+  return true;
 }
 function writeStatus(value) {
   mkdirSync(dirname(statusFile), { recursive: true, mode: 0o750 });
@@ -62,6 +74,17 @@ function assertCommitSha(value) {
   const sha = String(value || "").trim().toLowerCase();
   if (!commitShaPattern.test(sha)) throw new Error("升级请求缺少有效的提交 SHA，请重新检查更新");
   return sha;
+}
+async function assertTagCommit(tagName, expectedSha) {
+  const tag = String(tagName || "").trim();
+  if (!tag) throw new Error("升级请求缺少版本标签");
+  const response = await fetch(`https://api.github.com/repos/${repository}/commits/${encodeURIComponent(tag)}`, {
+    signal: AbortSignal.timeout(8_000),
+    headers: { Accept: "application/vnd.github+json", "User-Agent": "laboratory-resource-hub-updater" }
+  });
+  if (!response.ok) throw new Error(`无法验证版本标签：HTTP ${response.status}`);
+  const commit = await response.json();
+  if (String(commit?.sha || "").trim().toLowerCase() !== assertCommitSha(expectedSha)) throw new Error("版本标签与提交 SHA 不匹配");
 }
 function lockOwnerFile() { return join(lockDirectory, "owner.json"); }
 function processIsAlive(pid) {
@@ -127,10 +150,6 @@ function backupDatabase(oldRelease) {
   command(nodeBinary, [join(oldRelease, "scripts/backup-db.mjs"), "--data", dataFile, "--output-dir", backupDirectory, "--keep", "14"], { env: { ...process.env }, uid: undefined });
 }
 async function runOnce() {
-  if (!existsSync(requestFile)) {
-    recoverOrphanedStatus();
-    return { state: "idle", message: "没有待处理的升级任务" };
-  }
   let releaseLock;
   try { releaseLock = acquireLock(); }
   catch (error) { if (error.message === "已有升级任务正在执行") return { state: "busy", message: error.message }; throw error; }
@@ -139,17 +158,24 @@ async function runOnce() {
   let switched = false;
   let rollbackSource = null;
   let oldRelease = null;
+  let oldVersion = null;
   let targetVersion = null;
+  let commitSha = null;
+  let tagName = null;
   try {
+    if (recoverOrphanedStatus()) return { state: "recovered", message: "已恢复超时升级任务" };
+    if (!existsSync(requestFile)) return { state: "idle", message: "没有待处理的升级任务" };
     request = readJson(requestFile);
     targetVersion = normalizeVersion(request.version);
     if (request.repository !== repository) throw new Error("升级请求来源仓库不匹配");
-    const commitSha = assertCommitSha(request.commitSha);
+    commitSha = assertCommitSha(request.commitSha);
+    tagName = String(request.tagName || `v${targetVersion}`).trim();
     oldRelease = currentRelease();
-    const oldVersion = releaseVersion(oldRelease);
+    oldVersion = releaseVersion(oldRelease);
     if (compareVersions(targetVersion, oldVersion) <= 0) throw new Error("目标版本不是更新版本");
+    await assertTagCommit(tagName, commitSha);
     workDirectory = mkdtempSync(join(tmpdir(), "labequip-upgrade-"));
-    statusMessage("running", `正在准备升级到 v${targetVersion}`, { requestId: request.id, currentVersion: oldVersion, targetVersion, commitSha });
+    statusMessage("running", `正在准备升级到 v${targetVersion}`, { requestId: request.id, currentVersion: oldVersion, targetVersion, tagName, commitSha });
     const release = await downloadRelease(targetVersion, commitSha, workDirectory);
     runReleaseChecks(release);
     mkdirSync(releasesDirectory, { recursive: true });
@@ -163,10 +189,10 @@ async function runOnce() {
     const legacyCurrentDirectory = currentIsDirectory();
     const previousDirectory = legacyCurrentDirectory ? join(releasesDirectory, `previous-${request.id}`) : "";
     rollbackSource = legacyCurrentDirectory ? previousDirectory : oldRelease;
-    statusMessage("running", "正在创建数据库快照", { requestId: request.id, currentVersion: oldVersion, targetVersion, commitSha, releaseDirectory });
+    statusMessage("running", "正在创建数据库快照", { requestId: request.id, currentVersion: oldVersion, targetVersion, tagName, commitSha, releaseDirectory });
     backupDatabase(oldRelease);
     command("chown", ["-R", `${serviceUser}:${serviceGroup}`, backupDirectory]);
-    statusMessage("running", "正在切换服务版本", { requestId: request.id, currentVersion: oldVersion, targetVersion, commitSha, releaseDirectory });
+    statusMessage("running", "正在切换服务版本", { requestId: request.id, currentVersion: oldVersion, targetVersion, tagName, commitSha, releaseDirectory });
     command("docker", ["compose", "-f", composeFile, "stop", "web"]);
     command("systemctl", ["stop", apiService]);
     if (legacyCurrentDirectory) {
@@ -183,7 +209,7 @@ async function runOnce() {
     command("docker", ["compose", "-f", composeFile, "up", "-d", "--no-deps", "--force-recreate", "web"]);
     await assertHealthy(webHealthUrl);
     await assertHealthy(apiHealthUrl);
-    statusMessage("completed", `已成功升级到 v${targetVersion}`, { requestId: request.id, currentVersion: targetVersion, targetVersion, commitSha, releaseDirectory, previousRelease: oldRelease });
+    statusMessage("completed", `已成功升级到 v${targetVersion}`, { requestId: request.id, currentVersion: targetVersion, targetVersion, tagName, commitSha, releaseDirectory, previousRelease: oldRelease });
     quarantineRequest("completed", request.id);
     return { state: "completed", targetVersion };
   } catch (error) {
@@ -207,7 +233,7 @@ async function runOnce() {
       } catch (rollbackError) { error.message += `；自动回滚失败：${rollbackError.message}`; }
     }
     const requestId = request?.id || "unknown";
-    statusMessage("failed", `升级失败：${error.message}`, { requestId, targetVersion, previousRelease: oldRelease });
+    statusMessage("failed", `升级失败：${error.message}`, { requestId, currentVersion: oldVersion, targetVersion, tagName, commitSha, previousRelease: oldRelease });
     quarantineRequest(request ? "failed" : "invalid", requestId);
     return { state: "failed", error: error.message };
   } finally {

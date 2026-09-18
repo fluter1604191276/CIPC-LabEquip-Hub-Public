@@ -33,6 +33,7 @@ test("checks the latest release and resolves its immutable commit SHA", async ()
   const result = await manager.check();
   assert.equal(result.latestVersion, "1.4.0");
   assert.equal(result.commitSha, COMMIT_SHA);
+  assert.equal(result.tagName, "v1.4.0");
   assert.equal(result.updateAvailable, true);
   assert.equal(result.repository, "example/project");
   assert.equal(result.releaseNotes, "新增升级中心");
@@ -50,6 +51,7 @@ test("uses an embedded commit SHA without an extra lookup", async () => {
   });
   const result = await manager.check();
   assert.equal(result.commitSha, COMMIT_SHA);
+  assert.equal(result.tagName, "v1.4.0");
   assert.equal(calls, 1);
 });
 
@@ -81,4 +83,21 @@ test("falls back to the newest stable tag and carries its commit SHA", async () 
   const result = await manager.check();
   assert.equal(result.latestVersion, "1.4.0");
   assert.equal(result.commitSha, COMMIT_SHA);
+});
+
+test("supports release tags without a v prefix when resolving the commit", async () => {
+  const seen = [];
+  const manager = createUpdateManager({
+    currentVersion: "1.3.1",
+    repository: "example/project",
+    fetchImpl: async (url) => {
+      seen.push(String(url));
+      if (String(url).endsWith("/releases/latest")) return { ok: true, status: 200, async json() { return { tag_name: "1.4.0", name: "1.4.0" }; } };
+      return { ok: true, status: 200, async json() { return { sha: COMMIT_SHA }; } };
+    }
+  });
+  const result = await manager.check();
+  assert.equal(result.tagName, "1.4.0");
+  assert.equal(result.commitSha, COMMIT_SHA);
+  assert.match(seen.at(-1), /\/commits\/1\.4\.0$/);
 });

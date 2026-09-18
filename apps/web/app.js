@@ -940,7 +940,7 @@ function stopUpdateStatusPolling() {
 }
 
 function startUpdateStatusPolling() {
-  if (updateStatusTimer || currentUser?.role !== "developer" || !["queued", "running"].includes(updateStatus?.state)) return;
+  if (updateStatusTimer || currentUser?.role !== "developer" || currentRole !== "developer" || !["queued", "running"].includes(updateStatus?.state)) return;
   updateStatusTimer = window.setInterval(async () => {
     if (document.hidden || currentUser?.role !== "developer") return;
     try { await refreshUpdateStatus(); } catch { /* The next poll retries transient API failures. */ }
@@ -950,7 +950,7 @@ function startUpdateStatusPolling() {
 async function refreshUpdateStatus() {
   updateStatus = await apiRequest("/update/status");
   renderUpdateCenter();
-  if (["queued", "running"].includes(updateStatus?.state)) startUpdateStatusPolling();
+  if (["queued", "running"].includes(updateStatus?.state) && currentRole === "developer") startUpdateStatusPolling();
   else stopUpdateStatusPolling();
 }
 
@@ -1236,6 +1236,8 @@ function applyRoleView(role, announce = false) {
   if (!roleDefinitions[nextRole]) return;
   role = nextRole;
   currentRole = role;
+  if (currentRole === "developer" && ["queued", "running"].includes(updateStatus?.state)) startUpdateStatusPolling();
+  else stopUpdateStatusPolling();
   const definition = roleDefinitions[role];
   document.body.dataset.role = role;
   if (actualRole === "developer") {
@@ -1488,7 +1490,7 @@ async function loadApplicationData() {
   users = result[8] || [];
   const updateStatusResult = actualRole === "developer" ? result[10] : null;
   updateStatus = updateStatusResult || updateStatus;
-  if (["queued", "running"].includes(updateStatus?.state)) startUpdateStatusPolling();
+  if (["queued", "running"].includes(updateStatus?.state) && currentRole === "developer") startUpdateStatusPolling();
   else stopUpdateStatusPolling();
   const auditResult = result[9] || { items: [], pagination: auditPagination };
   auditLogs = auditResult.items || [];
@@ -2251,7 +2253,7 @@ document.addEventListener("click", (event) => { if (!event.target.closest(".role
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden && currentUser) {
     scheduleGreetingRefresh();
-    if (currentUser.role === "developer" && ["queued", "running"].includes(updateStatus?.state)) refreshUpdateStatus().catch(() => {});
+    if (currentUser.role === "developer" && currentRole === "developer" && ["queued", "running"].includes(updateStatus?.state)) refreshUpdateStatus().catch(() => {});
   }
 });
 document.querySelector("#open-user-guide").addEventListener("click", () => setGuideModal(true));

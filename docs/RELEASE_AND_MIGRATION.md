@@ -253,20 +253,24 @@ git diff --check
 - 生产数据库、备份、临时密码和私钥没有进入 Git 历史；
 - 发布标签对应的提交已经推送，并且老师能从标签复现部署。
 
-<a id="upgrade-v1-4-6"></a>
+<a id="upgrade-v1-4-7"></a>
 
-## v1.3.0/v1.3.1/v1.4.0/v1.4.1/v1.4.2/v1.4.3/v1.4.4/v1.4.5 快速升级到 v1.4.6
+## v1.3.0/v1.3.1/v1.4.0/v1.4.1/v1.4.2/v1.4.3/v1.4.4/v1.4.6 快速升级到 v1.4.7
 
-如果学校已经按旧版部署，最简单的方式是在服务器执行下面的命令。它会自动备份数据库、获取 v1.4.6、运行测试、更新 API 单元、安装升级中心并重建 Web；不会覆盖 `/opt/cipc-labequip/nginx.conf`，也不会删除生产数据库：
+如果学校已经按旧版部署，最简单的方式是在服务器执行下面的命令。它会自动备份数据库、获取 v1.4.7、运行测试、更新 API 单元、安装升级中心并重建 Web；不会覆盖 `/opt/cipc-labequip/nginx.conf`，也不会删除生产数据库：
 
 ```bash
 cd /opt/cipc-labequip/current
 git fetch --tags origin
-git show v1.4.6:scripts/upgrade-lan-from-v1.3.sh > /tmp/upgrade-lan-from-v1.3.sh
-sudo bash /tmp/upgrade-lan-from-v1.3.sh v1.4.6
+git show v1.4.7:scripts/upgrade-lan-from-v1.3.sh > /tmp/upgrade-lan-from-v1.3.sh
+sudo bash /tmp/upgrade-lan-from-v1.3.sh v1.4.7
 ```
 
 升级完成后，开发者进入“成员与权限 → 系统升级”即可进行后续版本升级。升级失败时脚本会尝试恢复升级前的代码提交；数据库快照位于 `/var/lib/cipc-labequip/backups`。
+
+## v1.4.7 超时恢复与绑定校验
+
+v1.4.7 修复 systemd 超时后 `running` 状态残留的问题，并在升级前重新校验版本标签与提交 SHA 的绑定关系。升级单元同时使用 `flock`，失败状态会保留当前版本、目标标签和提交 SHA。
 
 ## v1.4.6 升级链路说明
 

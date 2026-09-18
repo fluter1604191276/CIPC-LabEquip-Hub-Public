@@ -126,7 +126,7 @@ test("update center polls queued tasks and stops after completion", () => {
   assert.match(app, /window\.setInterval\(async \(\) =>/);
   assert.match(app, /function stopUpdateStatusPolling\(\)/);
   assert.match(app, /startUpdateStatusPolling\(\); showToast\(\"升级任务已提交\"/);
-  assert.match(app, /if \(\["queued", "running"\]\.includes\(updateStatus\?\.state\)\) startUpdateStatusPolling\(\)/);
+  assert.match(app, /if \(\["queued", "running"\]\.includes\(updateStatus\?\.state\) && currentRole === "developer"\) startUpdateStatusPolling\(\)/);
 });
 
 test("help guide is detailed and the update center exposes manual upgrade instructions", () => {

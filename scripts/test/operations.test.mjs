@@ -134,7 +134,7 @@ test("checks database integrity, backup freshness, disk capacity, and scheduled 
     assert.match(backupServiceUnit, /^ReadWritePaths=\/var\/lib\/cipc-labequip\/backups$/m);
     assert.doesNotMatch(backupServiceUnit, /^ReadOnlyPaths=\/var\/lib\/cipc-labequip\/data$/m);
     assert.match(apiServiceUnit, /^Environment=TRUST_PROXY=true$/m);
-    assert.match(upgradeServiceUnit, /^ExecStart=\/usr\/bin\/node \/opt\/cipc-labequip\/current\/scripts\/upgrade-agent\.mjs --once$/m);
+    assert.match(upgradeServiceUnit, /^ExecStart=\/usr\/bin\/flock -n \/var\/lib\/cipc-labequip\/data\/upgrade\/\.agent\.flock \/usr\/bin\/node \/opt\/cipc-labequip\/current\/scripts\/upgrade-agent\.mjs --once$/m);
     assert.match(upgradeServiceUnit, /^TimeoutStartSec=15min$/m);
     assert.match(upgradeServiceUnit, /^Environment=UPDATE_REPOSITORY=fluter1604191276\/CIPC-LabEquip-Hub-Public$/m);
     assert.match(upgradePathUnit, /^PathExists=\/var\/lib\/cipc-labequip\/data\/upgrade\/request\.json$/m);
@@ -152,6 +152,8 @@ test("upgrade agent copies releases across filesystems instead of renaming /tmp"
   assert.match(source, /assertCommitSha\(request\.commitSha\)/);
   assert.match(source, /mkdirSync\(lockDirectory/);
   assert.match(source, /recoverOrphanedStatus/);
+  assert.match(source, /assertTagCommit/);
+  assert.match(source, /currentVersion: oldVersion/);
   assert.match(source, /UPDATE_STALE_STATUS_MS/);
   assert.doesNotMatch(source, /shell: true/);
 });
