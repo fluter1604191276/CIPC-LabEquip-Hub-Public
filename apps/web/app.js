@@ -42,6 +42,7 @@ let selectedCalendarResourceKey = "";
 let expandedCalendarDate = "";
 let updateInfo = null;
 let updateStatus = null;
+let updateStatusTimer = null;
 
 const table = document.querySelector("#equipment-table");
 const searchInput = document.querySelector("#equipment-search");
@@ -931,9 +932,26 @@ git show "$VERSION":scripts/upgrade-lan-from-v1.3.sh > /tmp/upgrade-lan-from-v1.
 sudo bash /tmp/upgrade-lan-from-v1.3.sh "$VERSION"`;
 }
 
+function stopUpdateStatusPolling() {
+  if (updateStatusTimer) {
+    window.clearInterval(updateStatusTimer);
+    updateStatusTimer = null;
+  }
+}
+
+function startUpdateStatusPolling() {
+  if (updateStatusTimer || currentUser?.role !== "developer" || !["queued", "running"].includes(updateStatus?.state)) return;
+  updateStatusTimer = window.setInterval(async () => {
+    if (document.hidden || currentUser?.role !== "developer") return;
+    try { await refreshUpdateStatus(); } catch { /* The next poll retries transient API failures. */ }
+  }, 3000);
+}
+
 async function refreshUpdateStatus() {
   updateStatus = await apiRequest("/update/status");
   renderUpdateCenter();
+  if (["queued", "running"].includes(updateStatus?.state)) startUpdateStatusPolling();
+  else stopUpdateStatusPolling();
 }
 
 function renderAll() {
@@ -1436,6 +1454,7 @@ function setAuthError(element, message = "") {
 
 function showLogin(message = "") {
   stopGreetingRefresh();
+  stopUpdateStatusPolling();
   currentUser = null;
   document.body.classList.add("auth-pending");
   document.body.classList.remove("authenticated");
@@ -1469,6 +1488,8 @@ async function loadApplicationData() {
   users = result[8] || [];
   const updateStatusResult = actualRole === "developer" ? result[10] : null;
   updateStatus = updateStatusResult || updateStatus;
+  if (["queued", "running"].includes(updateStatus?.state)) startUpdateStatusPolling();
+  else stopUpdateStatusPolling();
   const auditResult = result[9] || { items: [], pagination: auditPagination };
   auditLogs = auditResult.items || [];
   auditPagination = auditResult.pagination || auditPagination;
@@ -2228,7 +2249,10 @@ document.querySelectorAll("[data-role-option]").forEach((option) => option.addEv
 }));
 document.addEventListener("click", (event) => { if (!event.target.closest(".role-switcher")) setRoleMenu(false); });
 document.addEventListener("visibilitychange", () => {
-  if (!document.hidden && currentUser) scheduleGreetingRefresh();
+  if (!document.hidden && currentUser) {
+    scheduleGreetingRefresh();
+    if (currentUser.role === "developer" && ["queued", "running"].includes(updateStatus?.state)) refreshUpdateStatus().catch(() => {});
+  }
 });
 document.querySelector("#open-user-guide").addEventListener("click", () => setGuideModal(true));
 document.querySelectorAll(".close-guide-modal").forEach((button) => button.addEventListener("click", () => setGuideModal(false)));
@@ -2267,7 +2291,7 @@ document.querySelector("#update-manual-copy").addEventListener("click", async ()
 document.querySelector("#update-apply").addEventListener("click", async () => {
   if (!updateInfo?.updateAvailable || !window.confirm(`确认备份并升级到 v${updateInfo.latestVersion}？升级期间系统会短暂不可用。`)) return;
   const button = document.querySelector("#update-apply"); button.disabled = true;
-  try { updateStatus = await apiRequest("/update", { method: "POST", body: JSON.stringify({ version: updateInfo.latestVersion }) }); renderUpdateCenter(); showToast("升级任务已提交"); }
+  try { updateStatus = await apiRequest("/update", { method: "POST", body: JSON.stringify({ version: updateInfo.latestVersion }) }); renderUpdateCenter(); startUpdateStatusPolling(); showToast("升级任务已提交"); }
   catch (error) { showToast(error.message || "升级任务提交失败", "error"); button.disabled = false; }
 });
 

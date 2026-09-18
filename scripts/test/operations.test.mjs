@@ -66,6 +66,7 @@ test("checks database integrity, backup freshness, disk capacity, and scheduled 
     const apiServicePath = new URL("../../deploy/vps/cipc-labequip-api.service", import.meta.url);
     const upgradeServicePath = new URL("../../deploy/lan/cipc-labequip-upgrade.service", import.meta.url);
     const upgradePathPath = new URL("../../deploy/lan/cipc-labequip-upgrade.path", import.meta.url);
+    const manualUpgradePath = new URL("../upgrade-lan-from-v1.3.sh", import.meta.url);
     const bootstrapPath = new URL("../bootstrap-admin.mjs", import.meta.url);
     assert.equal(existsSync(servicePath), true);
     assert.equal(existsSync(timerPath), true);
@@ -80,6 +81,7 @@ test("checks database integrity, backup freshness, disk capacity, and scheduled 
     const apiServiceUnit = readFileSync(apiServicePath, "utf8");
     const upgradeServiceUnit = readFileSync(upgradeServicePath, "utf8");
     const upgradePathUnit = readFileSync(upgradePathPath, "utf8");
+    const manualUpgradeScript = readFileSync(manualUpgradePath, "utf8");
     const lanNginxPath = new URL("../../deploy/lan/nginx.conf", import.meta.url);
     const lanComposePath = new URL("../../deploy/lan/compose.yaml", import.meta.url);
     const lanApiServicePath = new URL("../../deploy/lan/cipc-labequip-api.service", import.meta.url);
@@ -133,8 +135,11 @@ test("checks database integrity, backup freshness, disk capacity, and scheduled 
     assert.doesNotMatch(backupServiceUnit, /^ReadOnlyPaths=\/var\/lib\/cipc-labequip\/data$/m);
     assert.match(apiServiceUnit, /^Environment=TRUST_PROXY=true$/m);
     assert.match(upgradeServiceUnit, /^ExecStart=\/usr\/bin\/node \/opt\/cipc-labequip\/current\/scripts\/upgrade-agent\.mjs --once$/m);
+    assert.match(upgradeServiceUnit, /^TimeoutStartSec=15min$/m);
     assert.match(upgradeServiceUnit, /^Environment=UPDATE_REPOSITORY=fluter1604191276\/CIPC-LabEquip-Hub-Public$/m);
     assert.match(upgradePathUnit, /^PathExists=\/var\/lib\/cipc-labequip\/data\/upgrade\/request\.json$/m);
+    assert.match(manualUpgradeScript, /flock -n 9/);
+    assert.match(manualUpgradeScript, /TARGET_COMMIT=\$\(git rev-list -n 1/);
     assert.match(apiServiceUnit, /^Environment=SEED_DEMO_USERS=false$/m);
   } finally { rmSync(directory, { recursive: true, force: true }); }
 });
@@ -143,6 +148,12 @@ test("upgrade agent copies releases across filesystems instead of renaming /tmp"
   const source = readFileSync(new URL("../upgrade-agent.mjs", import.meta.url), "utf8");
   assert.match(source, /cpSync\(release, releaseDirectory/);
   assert.match(source, /rmSync\(release, \{ recursive: true, force: true \}\)/);
+  assert.match(source, /archive\/\$\{ref\}\.tar\.gz/);
+  assert.match(source, /assertCommitSha\(request\.commitSha\)/);
+  assert.match(source, /mkdirSync\(lockDirectory/);
+  assert.match(source, /recoverOrphanedStatus/);
+  assert.match(source, /UPDATE_STALE_STATUS_MS/);
+  assert.doesNotMatch(source, /shell: true/);
 });
 
 test("fails when the API check is omitted or a touched backup filename is stale", async () => {

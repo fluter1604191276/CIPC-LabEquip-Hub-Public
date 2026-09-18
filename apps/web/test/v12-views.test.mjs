@@ -120,6 +120,15 @@ test("developer-only update center has check and apply controls", () => {
 });
 
 
+test("update center polls queued tasks and stops after completion", () => {
+  assert.match(app, /let updateStatusTimer = null;/);
+  assert.match(app, /function startUpdateStatusPolling\(\)/);
+  assert.match(app, /window\.setInterval\(async \(\) =>/);
+  assert.match(app, /function stopUpdateStatusPolling\(\)/);
+  assert.match(app, /startUpdateStatusPolling\(\); showToast\(\"升级任务已提交\"/);
+  assert.match(app, /if \(\["queued", "running"\]\.includes\(updateStatus\?\.state\)\) startUpdateStatusPolling\(\)/);
+});
+
 test("help guide is detailed and the update center exposes manual upgrade instructions", () => {
   assert.match(html, /id="guide-panel-upgrade"/);
   assert.match(html, /id="update-manual-command"/);

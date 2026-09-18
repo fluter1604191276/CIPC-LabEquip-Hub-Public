@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 
 const versionPattern = /^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
 const stableVersionPattern = /^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:\+[0-9A-Za-z.-]+)?$/;
+const commitShaPattern = /^[0-9a-f]{40}$/i;
 
 export function normalizeVersion(value) {
   const version = String(value || "").trim();
@@ -37,6 +38,12 @@ function assertStable(value) {
   return normalizeVersion(version);
 }
 
+function assertCommitSha(value) {
+  const sha = String(value || "").trim().toLowerCase();
+  if (!commitShaPattern.test(sha)) throw new Error("版本提交 SHA 无效");
+  return sha;
+}
+
 function githubUrl(repository, suffix) {
   return `https://api.github.com/repos/${repository}${suffix}`;
 }
@@ -61,20 +68,39 @@ export function createUpdateManager({
     return response.json();
   }
 
+  async function resolveCommitSha(release, latestVersion) {
+    const embeddedSha = release?.commit?.sha || release?.target_commitish;
+    if (commitShaPattern.test(String(embeddedSha || "").trim())) return assertCommitSha(embeddedSha);
+    const commit = await githubJson(githubUrl(normalizedRepository, `/commits/v${latestVersion}`));
+    return assertCommitSha(commit?.sha);
+  }
+
   async function check() {
     let release;
     try {
       release = await githubJson(githubUrl(normalizedRepository, "/releases/latest"));
     } catch (error) {
       const tags = await githubJson(githubUrl(normalizedRepository, "/tags?per_page=30"));
-      const candidate = tags.map((tag) => tag.name) .filter((tag) => stableVersionPattern.test(String(tag).trim())).sort((a, b) => compareVersions(b, a))[0];
+      const candidate = tags
+        .filter((tag) => stableVersionPattern.test(String(tag?.name || "").trim()))
+        .sort((a, b) => compareVersions(b.name, a.name))[0];
       if (!candidate) throw error;
-      release = { tag_name: candidate, name: candidate, html_url: `https://github.com/${normalizedRepository}/releases/tag/${candidate}`, body: "", published_at: null, tarball_url: `https://github.com/${normalizedRepository}/archive/refs/tags/${candidate}.tar.gz` };
+      release = {
+        tag_name: candidate.name,
+        name: candidate.name,
+        body: "",
+        html_url: `https://github.com/${normalizedRepository}/releases/tag/${candidate.name}`,
+        published_at: null,
+        tarball_url: `https://github.com/${normalizedRepository}/archive/refs/tags/${candidate.name}.tar.gz`,
+        commit: candidate.commit
+      };
     }
     const latestVersion = assertStable(release.tag_name || release.name);
+    const commitSha = await resolveCommitSha(release, latestVersion);
     return {
       currentVersion: normalizedCurrentVersion,
       latestVersion,
+      commitSha,
       updateAvailable: compareVersions(latestVersion, normalizedCurrentVersion) > 0,
       repository: normalizedRepository,
       releaseName: String(release.name || release.tag_name || latestVersion),
@@ -95,11 +121,23 @@ export function createUpdateManager({
     if (["queued", "running"].includes(existing.state)) throw new Error("已有升级任务正在执行");
     const latest = await check();
     if (latest.latestVersion !== targetVersion || !latest.updateAvailable) throw new Error("目标版本不是当前可升级的稳定版本，请重新检查更新");
-    const request = { id: randomUUID(), version: targetVersion, repository: normalizedRepository, requestedAt: new Date().toISOString(), actor: { id: actor?.id || null, username: actor?.username || "", displayName: actor?.displayName || "" } };
+    const request = {
+      id: randomUUID(),
+      version: targetVersion,
+      commitSha: latest.commitSha,
+      repository: normalizedRepository,
+      requestedAt: new Date().toISOString(),
+      actor: { id: actor?.id || null, username: actor?.username || "", displayName: actor?.displayName || "" }
+    };
     // Publish the queued status before the path watcher sees the request file.
     // This avoids a fast systemd agent run being overwritten by stale "queued" state.
-    atomicWriteJson(statusFile, { state: "queued", requestId: request.id, currentVersion: normalizedCurrentVersion, targetVersion, requestedAt: request.requestedAt, updatedAt: request.requestedAt, message: "升级任务已排队，等待升级服务执行" });
-    atomicWriteJson(requestFile, request);
+    atomicWriteJson(statusFile, { state: "queued", requestId: request.id, currentVersion: normalizedCurrentVersion, targetVersion, commitSha: request.commitSha, requestedAt: request.requestedAt, updatedAt: request.requestedAt, message: "升级任务已排队，等待升级服务执行" });
+    try {
+      atomicWriteJson(requestFile, request);
+    } catch (error) {
+      atomicWriteJson(statusFile, { state: "failed", requestId: request.id, currentVersion: normalizedCurrentVersion, targetVersion, commitSha: request.commitSha, requestedAt: request.requestedAt, message: `升级请求写入失败：${error.message}` });
+      throw error;
+    }
     return getStatus();
   }
 

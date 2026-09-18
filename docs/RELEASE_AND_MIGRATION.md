@@ -253,18 +253,26 @@ git diff --check
 - 生产数据库、备份、临时密码和私钥没有进入 Git 历史；
 - 发布标签对应的提交已经推送，并且老师能从标签复现部署。
 
-## v1.3.0/v1.3.1/v1.4.0/v1.4.1 快速升级到 v1.4.5
+<a id="upgrade-v1-4-6"></a>
 
-如果学校已经按旧版部署，最简单的方式是在服务器执行下面的命令。它会自动备份数据库、获取 v1.4.5、运行测试、更新 API 单元、安装升级中心并重建 Web；不会覆盖 `/opt/cipc-labequip/nginx.conf`，也不会删除生产数据库：
+## v1.3.0/v1.3.1/v1.4.0/v1.4.1/v1.4.2/v1.4.3/v1.4.4/v1.4.5 快速升级到 v1.4.6
+
+如果学校已经按旧版部署，最简单的方式是在服务器执行下面的命令。它会自动备份数据库、获取 v1.4.6、运行测试、更新 API 单元、安装升级中心并重建 Web；不会覆盖 `/opt/cipc-labequip/nginx.conf`，也不会删除生产数据库：
 
 ```bash
 cd /opt/cipc-labequip/current
 git fetch --tags origin
-git show v1.4.5:scripts/upgrade-lan-from-v1.3.sh > /tmp/upgrade-lan-from-v1.3.sh
-sudo bash /tmp/upgrade-lan-from-v1.3.sh v1.4.5
+git show v1.4.6:scripts/upgrade-lan-from-v1.3.sh > /tmp/upgrade-lan-from-v1.3.sh
+sudo bash /tmp/upgrade-lan-from-v1.3.sh v1.4.6
 ```
 
 升级完成后，开发者进入“成员与权限 → 系统升级”即可进行后续版本升级。升级失败时脚本会尝试恢复升级前的代码提交；数据库快照位于 `/var/lib/cipc-labequip/backups`。
+
+## v1.4.6 升级链路说明
+
+v1.4.6 会在检查更新时记录目标提交 SHA；升级代理按该 SHA 下载代码，而不是重新解析可变标签。升级任务使用独立锁，失败请求会被隔离，systemd 单元最长允许运行 15 分钟。升级状态页面会在排队和执行期间自动刷新。
+
+升级代理仍只回滚代码 release，不自动回滚 SQLite 数据。涉及数据库迁移的版本，必须保留升级前快照并按恢复演练流程执行。
 
 ## 开发者升级中心（v1.4.0 起）
 

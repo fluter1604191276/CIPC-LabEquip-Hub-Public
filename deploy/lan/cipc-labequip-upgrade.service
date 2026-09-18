@@ -6,6 +6,7 @@ Requires=docker.service
 
 [Service]
 Type=oneshot
+TimeoutStartSec=15min
 User=root
 WorkingDirectory=/opt/cipc-labequip/current
 Environment=UPDATE_REPOSITORY=fluter1604191276/CIPC-LabEquip-Hub-Public

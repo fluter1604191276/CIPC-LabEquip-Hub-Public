@@ -45,7 +45,7 @@ sudo systemctl enable --now cipc-labequip-upgrade.path
 3. 点击“备份并升级”；
 4. 等待任务状态变为完成。
 
-升级代理会固定读取公开稳定版本，创建 SQLite 快照，下载版本并运行测试，再切换 release、重启 API、重建 Web 容器和执行健康检查。失败时会尝试恢复上一代码 release；数据库不会自动回滚。
+升级代理会固定读取公开稳定版本对应的提交 SHA，创建 SQLite 快照，按提交下载版本并以运行账号执行测试，再切换 release、重启 API、重建 Web 容器和执行健康检查。任务带有并发锁，最长运行 15 分钟；失败请求会被隔离，失败时会尝试恢复上一代码 release；数据库不会自动回滚。
 
 查看升级日志：
 
@@ -55,4 +55,4 @@ sudo journalctl -u cipc-labequip-upgrade.service -n 100 --no-pager
 cat /var/lib/cipc-labequip/data/upgrade/status.json
 ```
 
-升级期间页面可能短暂显示网络错误，刷新后查看状态即可。升级代理使用 root 运行是因为它需要切换 release、重启 systemd 服务和重建 Docker 容器；网页本身不会直接获得这些权限。
+升级期间页面可能短暂显示网络错误，页面会自动轮询排队/执行状态，完成或失败后停止轮询。升级代理使用 root 运行是因为它需要切换 release、重启 systemd 服务和重建 Docker 容器；下载版本的语法检查和测试使用 `cipc-labequip` 运行账号，网页本身不会直接获得这些权限。

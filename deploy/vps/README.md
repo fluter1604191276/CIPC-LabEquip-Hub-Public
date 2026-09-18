@@ -184,3 +184,7 @@ sudo systemctl enable --now cipc-labequip-upgrade.path
 ```
 
 The developer-only “系统升级” page checks the stable public release, queues a request, and lets the root-owned systemd agent perform the database backup, release tests, service switch, health checks, and code rollback. Database rollback remains a separate, deliberate restore operation.
+
+## Upgrade agent hardening
+
+The v1.4.6 upgrade agent records the release commit SHA, uses a local concurrency lock, runs downloaded checks as the service account, isolates failed request files, and has a 15-minute systemd start timeout. Keep the database backup separate from code rollback; restore SQLite explicitly if a migration must be reversed.
