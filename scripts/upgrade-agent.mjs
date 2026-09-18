@@ -72,7 +72,7 @@ function runReleaseChecks(directory) {
   command(nodeBinary, ["--test", "apps/api/test/*.test.mjs", "apps/web/test/*.test.mjs", "scripts/test/*.test.mjs"], { cwd: directory, shell: true, stdio: "inherit" });
 }
 function backupDatabase(oldRelease) {
-  command(process.env.UPDATE_NODE || "/usr/bin/node", [join(oldRelease, "scripts/backup-db.mjs"), "--data", dataFile, "--output-dir", backupDirectory, "--keep", "14"], { env: { ...process.env }, uid: undefined });
+  command(nodeBinary, [join(oldRelease, "scripts/backup-db.mjs"), "--data", dataFile, "--output-dir", backupDirectory, "--keep", "14"], { env: { ...process.env }, uid: undefined });
 }
 async function runOnce() {
   if (!existsSync(requestFile)) return { state: "idle", message: "没有待处理的升级任务" };
