@@ -253,17 +253,17 @@ git diff --check
 - 生产数据库、备份、临时密码和私钥没有进入 Git 历史；
 - 发布标签对应的提交已经推送，并且老师能从标签复现部署。
 
-<a id="upgrade-v1-4-13"></a>
+<a id="upgrade-v1-4-14"></a>
 
-## v1.3.0 至 v1.4.11 快速升级到 v1.4.13
+## v1.3.0 至 v1.4.13 快速升级到 v1.4.14
 
-如果学校已经按旧版部署，推荐从公开仓库标签获取升级脚本。它会自动备份数据库、获取 v1.4.13、运行检查、更新 API 单元、安装升级中心并重建 Web；不会删除生产数据库。升级前请确认服务器已能访问 GitHub，并预留维护窗口：
+如果学校已经按旧版部署，推荐从公开仓库标签获取升级脚本。它会自动备份数据库、获取 v1.4.14、运行检查、更新 API 单元、安装升级中心并重建 Web；不会删除生产数据库。升级前请确认服务器已能访问 GitHub，并预留维护窗口：
 
 ```bash
 cd /opt/cipc-labequip/current
 git fetch --tags origin
-git show v1.4.13:scripts/upgrade-lan-from-v1.3.sh > /tmp/upgrade-lan-from-v1.3.sh
-sudo bash /tmp/upgrade-lan-from-v1.3.sh v1.4.13
+git show v1.4.14:scripts/upgrade-lan-from-v1.3.sh > /tmp/upgrade-lan-from-v1.3.sh
+sudo bash /tmp/upgrade-lan-from-v1.3.sh v1.4.14
 ```
 
 升级完成后，开发者进入“成员与权限 → 系统升级”即可检查后续稳定版。升级失败时脚本会尝试恢复升级前的代码；数据库快照位于 `/var/lib/cipc-labequip/backups`。升级后必须核对：
@@ -277,7 +277,7 @@ curl -fsS http://127.0.0.1:4000/api/health
 curl -fsS http://127.0.0.1:8080/healthz
 ```
 
-生产 v1.4.11 的旧升级单元应重新安装带 `--flock-held` 的 v1.4.13 单元，避免外层 flock 与代理内部锁重复：
+生产 v1.4.13 的旧升级单元应重新安装带 `--flock-held` 的 v1.4.14 单元，避免外层 flock 与代理内部锁重复：
 
 ```bash
 cd /opt/cipc-labequip/current
