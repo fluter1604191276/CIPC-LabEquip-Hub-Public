@@ -148,6 +148,11 @@ test("manual upgrade instructions never fall back to a stale hard-coded release"
   assert.match(app, /manualCopy\.disabled = true/);
 });
 
+test("release assets use a fresh cache-busting version", () => {
+  assert.match(html, /styles\.css\?v=1\.4\.9/);
+  assert.match(html, /app\.js\?v=1\.4\.9/);
+});
+
 
 test("upgrade channel follows the selected developer simulation view", () => {
   assert.match(app, /button\.hidden = !definition\.views\.includes\(button\.dataset\.view\)/);

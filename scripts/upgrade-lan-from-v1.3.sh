@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-VERSION="${1:-v1.4.8}"
+VERSION="${1:-v1.4.9}"
 ROOT="${LABEQUIP_ROOT:-/opt/cipc-labequip}"
 CURRENT="$ROOT/current"
 DATA_FILE="/var/lib/cipc-labequip/data/production.sqlite"
@@ -16,7 +16,7 @@ LOCK_FILE="${LABEQUIP_UPGRADE_LOCK:-/var/lock/cipc-labequip-upgrade.lock}"
 exec 9>"$LOCK_FILE"
 flock -n 9 || { echo "已有升级任务正在执行" >&2; exit 1; }
 
-case "$VERSION" in v[0-9]*.[0-9]*.[0-9]*) ;; *) echo "用法：sudo bash scripts/upgrade-lan-from-v1.3.sh [v1.4.8]" >&2; exit 2 ;; esac
+case "$VERSION" in v[0-9]*.[0-9]*.[0-9]*) ;; *) echo "用法：sudo bash scripts/upgrade-lan-from-v1.3.sh [v1.4.9]" >&2; exit 2 ;; esac
 [ -d "$CURRENT/.git" ] || { echo "找不到 Git 工作目录：$CURRENT" >&2; exit 1; }
 cd "$CURRENT"
 [ -z "$(git status --porcelain)" ] || { echo "当前代码目录有未提交修改，请先处理：$CURRENT" >&2; exit 1; }
