@@ -65,7 +65,14 @@ test("runs release checks and backup as configured uid/gid and writes readable s
   const childCommands = f.commands.filter(({ file }) => file === process.execPath);
   assert.ok(childCommands.some(({ args }) => args[0] === "--test"));
   assert.ok(childCommands.some(({ args }) => args[0].endsWith("backup-db.mjs")));
-  for (const child of childCommands) { assert.equal(child.options.uid, 1201); assert.equal(child.options.gid, 1202); }
+  for (const child of childCommands) {
+    assert.equal(child.options.uid, 1201);
+    assert.equal(child.options.gid, 1202);
+    if (child.args[0] === "--test" || child.args[0] === "--check") {
+      assert.equal(child.options.env?.UPDATE_SERVICE_GROUP, undefined);
+      assert.equal(child.options.env?.DATA_FILE, undefined);
+    }
+  }
   assert.ok(f.ownership.some(([file, uid, gid]) => file.includes("status.json.") && uid === 1201 && gid === 1202));
   assert.equal(fs.statSync(f.env.UPDATE_STATUS_FILE).mode & 0o777, 0o640);
   assert.equal(f.status().currentVersion, "2.0.0");

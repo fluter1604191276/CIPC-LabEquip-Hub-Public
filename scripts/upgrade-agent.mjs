@@ -136,13 +136,25 @@ export function createUpgradeAgent({ env = process.env, command: execute = comma
   function runReleaseChecks(directory) {
     execute("chmod", ["-R", "a+rX", directory]);
     const identityOptions = { cwd: directory, ...serviceIdentity };
-    for (const file of ["apps/api/server.mjs", "apps/api/lib/database.mjs", "apps/api/lib/service.mjs", "apps/api/lib/update.mjs", "apps/web/app.js"]) execute(nodeBinary, ["--check", file], identityOptions);
+    // Do not let a production systemd unit change the meaning of release tests.
+    // In particular, UPDATE_SERVICE_GROUP and health/data paths are site-local
+    // settings; test fixtures must be free to provide their own values.
+    const testEnvironment = { ...process.env };
+    for (const key of [
+      "UPDATE_REPOSITORY", "UPDATE_BASE_DIR", "UPDATE_CURRENT_LINK",
+      "UPDATE_RELEASES_DIR", "UPDATE_REQUEST_FILE", "UPDATE_STATUS_FILE",
+      "UPDATE_SERVICE_USER", "UPDATE_SERVICE_GROUP", "UPDATE_API_SERVICE",
+      "UPDATE_COMPOSE_FILE", "UPDATE_API_HEALTH_URL", "UPDATE_WEB_HEALTH_URL",
+      "UPDATE_NODE", "DATA_FILE", "BACKUP_DIR", "APP_VERSION", "UPDATE_ENABLED"
+    ]) delete testEnvironment[key];
+    const testOptions = { ...identityOptions, env: testEnvironment };
+    for (const file of ["apps/api/server.mjs", "apps/api/lib/database.mjs", "apps/api/lib/service.mjs", "apps/api/lib/update.mjs", "apps/web/app.js"]) execute(nodeBinary, ["--check", file], testOptions);
     const files = ["apps/api/test", "apps/web/test", "scripts/test"].flatMap((relativeDirectory) => {
       const absolute = join(directory, relativeDirectory);
       return existsSync(absolute) ? readdirSync(absolute).filter((file) => file.endsWith(".test.mjs")).sort().map((file) => join(relativeDirectory, file)) : [];
     });
     if (!files.length) throw new Error("发布包缺少测试文件");
-    execute(nodeBinary, ["--test", ...files], { ...identityOptions, stdio: "inherit" });
+    execute(nodeBinary, ["--test", ...files], { ...testOptions, stdio: "inherit" });
   }
   function backupDatabase(oldRelease) {
     mkdirSync(backupDirectory, { recursive: true, mode: 0o750 });
