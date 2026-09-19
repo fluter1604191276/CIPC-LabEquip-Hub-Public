@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, renameSync, writeFileSync, existsSync } from "node:fs";
+import { mkdirSync, readFileSync, renameSync, writeFileSync, existsSync, rmSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 
@@ -118,31 +118,78 @@ export function createUpdateManager({
     return readJson(statusFile, { state: "idle", currentVersion: normalizedCurrentVersion, updatedAt: null, message: "尚未执行升级任务" });
   }
 
-  async function requestUpgrade(version, actor) {
-    const targetVersion = assertStable(version);
-    const existing = getStatus();
-    if (["queued", "running"].includes(existing.state)) throw new Error("已有升级任务正在执行");
-    const latest = await check();
-    if (latest.latestVersion !== targetVersion || !latest.updateAvailable) throw new Error("目标版本不是当前可升级的稳定版本，请重新检查更新");
-    const request = {
-      id: randomUUID(),
-      version: targetVersion,
-      tagName: latest.tagName,
-      commitSha: latest.commitSha,
-      repository: normalizedRepository,
-      requestedAt: new Date().toISOString(),
-      actor: { id: actor?.id || null, username: actor?.username || "", displayName: actor?.displayName || "" }
-    };
-    // Publish the queued status before the path watcher sees the request file.
-    // This avoids a fast systemd agent run being overwritten by stale "queued" state.
-    atomicWriteJson(statusFile, { state: "queued", requestId: request.id, currentVersion: normalizedCurrentVersion, targetVersion, commitSha: request.commitSha, requestedAt: request.requestedAt, updatedAt: request.requestedAt, message: "升级任务已排队，等待升级服务执行" });
-    try {
-      atomicWriteJson(requestFile, request);
-    } catch (error) {
-      atomicWriteJson(statusFile, { state: "failed", requestId: request.id, currentVersion: normalizedCurrentVersion, targetVersion, commitSha: request.commitSha, requestedAt: request.requestedAt, message: `升级请求写入失败：${error.message}` });
+  let submissionPending = false;
+  // Shared with manual/automatic agents. Never reclaim another writer's
+  // incomplete guard: only the OS-flock owner may recover a proven dead owner.
+  const admissionLockDirectory = resolve(dirname(requestFile), ".upgrade-lock");
+  function acquireAdmissionLock() {
+    mkdirSync(dirname(admissionLockDirectory), { recursive: true, mode: 0o700 });
+    try { mkdirSync(admissionLockDirectory, { mode: 0o750 }); }
+    catch (error) {
+      if (error.code === "EEXIST") throw new Error("已有升级任务正在执行");
       throw error;
     }
-    return getStatus();
+    try {
+      writeFileSync(`${admissionLockDirectory}/owner.json`, `${JSON.stringify({ pid: process.pid, startedAt: new Date().toISOString() })}\n`, { mode: 0o640 });
+    } catch (error) {
+      rmSync(admissionLockDirectory, { recursive: true, force: true });
+      throw error;
+    }
+    return () => rmSync(admissionLockDirectory, { recursive: true, force: true });
+  }
+  function assertQueueAvailable(checkLock = true) {
+    if (["queued", "running"].includes(getStatus().state) || existsSync(requestFile)
+        || (checkLock && existsSync(admissionLockDirectory))) {
+      throw new Error("已有升级任务正在执行");
+    }
+  }
+
+  async function requestUpgrade(version, actor) {
+    const targetVersion = assertStable(version);
+    if (submissionPending) throw new Error("已有升级任务正在执行");
+    assertQueueAvailable();
+    submissionPending = true;
+    try {
+      const latest = await check();
+      // Admission is claimed only after the network check, then rechecked while
+      // holding an atomic cross-process lock so separate API workers cannot
+      // overwrite one another's request during the await above.
+      const releaseAdmission = acquireAdmissionLock();
+      try {
+        assertQueueAvailable(false);
+        if (latest.latestVersion !== targetVersion || !latest.updateAvailable) throw new Error("目标版本不是当前可升级的稳定版本，请重新检查更新");
+        const request = {
+          id: randomUUID(),
+          version: targetVersion,
+          tagName: latest.tagName,
+          commitSha: latest.commitSha,
+          repository: normalizedRepository,
+          requestedAt: new Date().toISOString(),
+          actor: { id: actor?.id || null, username: actor?.username || "", displayName: actor?.displayName || "" }
+        };
+        // Publish queued status before the path watcher sees the request file.
+        atomicWriteJson(statusFile, {
+          state: "queued", requestId: request.id, currentVersion: normalizedCurrentVersion,
+          targetVersion, commitSha: request.commitSha, requestedAt: request.requestedAt,
+          updatedAt: request.requestedAt, message: "升级任务已排队，等待升级服务执行"
+        });
+        try {
+          atomicWriteJson(requestFile, request);
+        } catch (error) {
+          atomicWriteJson(statusFile, {
+            state: "failed", requestId: request.id, currentVersion: normalizedCurrentVersion,
+            targetVersion, commitSha: request.commitSha, requestedAt: request.requestedAt,
+            message: `升级请求写入失败：${error.message}`
+          });
+          throw error;
+        }
+        return getStatus();
+      } finally {
+        releaseAdmission();
+      }
+    } finally {
+      submissionPending = false;
+    }
   }
 
   return { check, getStatus, requestUpgrade, repository: normalizedRepository, currentVersion: normalizedCurrentVersion, requestFile, statusFile };

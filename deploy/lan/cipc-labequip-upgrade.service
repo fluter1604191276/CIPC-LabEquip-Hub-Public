@@ -23,7 +23,7 @@ Environment=DATA_FILE=/var/lib/cipc-labequip/data/production.sqlite
 Environment=BACKUP_DIR=/var/lib/cipc-labequip/backups
 Environment=UPDATE_API_HEALTH_URL=http://127.0.0.1:4000/api/health
 Environment=UPDATE_WEB_HEALTH_URL=http://127.0.0.1:8080/healthz
-ExecStart=/usr/bin/flock -n /var/lib/cipc-labequip/data/upgrade/.agent.flock /usr/bin/node /opt/cipc-labequip/current/scripts/upgrade-agent.mjs --once
+ExecStart=/usr/bin/flock -n /var/lib/cipc-labequip/data/upgrade/.agent.flock /usr/bin/node /opt/cipc-labequip/current/scripts/upgrade-agent.mjs --once --flock-held
 PrivateTmp=true
 ProtectHome=true
 ProtectSystem=full

@@ -92,6 +92,11 @@ let auditLogs = [];
 let auditPagination = { page: 1, pageSize: 20, total: 0, totalPages: 1 };
 let activeMyReservationFilter = "all";
 let currentUser = null;
+let authEpoch = 0;
+const logoutStorageKey = "lab-resource-logout-pending";
+let logoutPending = readPendingLogout();
+let logoutRequest = null;
+const pendingAuthRequests = new Set();
 let greetingRefreshTimer = null;
 let activeFilter = "all";
 let drawerEquipment = null;
@@ -227,6 +232,16 @@ function readStoredRole() {
 }
 
 async function apiRequest(path, options = {}) {
+  const changesSession = options.method === "POST" && ["/auth/login", "/auth/change-password"].includes(path);
+  if (!changesSession) return performApiRequest(path, options);
+  if (logoutPending || readPendingLogout()) throw new Error("请先完成退出，再登录或修改密码");
+  const request = performApiRequest(path, options);
+  pendingAuthRequests.add(request);
+  try { return await request; }
+  finally { pendingAuthRequests.delete(request); }
+}
+
+async function performApiRequest(path, options = {}) {
   if (disposed) throw new DOMException("Application disposed", "AbortError");
   if (tutorial) {
     const data = await requestAdapter(path, options);
@@ -402,8 +417,10 @@ async function cancelReservation(id, type = "equipment") {
     renderStats();
     renderNotifications();
     renderMeetingRooms();
-    await refreshReservationViews();
-    showToast("预约已取消");
+    const mine = myReservations.findIndex((item) => item.id === id && myReservationType(item) === type);
+    if (mine >= 0) myReservations[mine] = { ...myReservations[mine], ...cancelled };
+    renderMyReservations();
+    await refreshAfterMutation("预约已取消", refreshReservationViews);
   } catch (error) {
     showToast(error.message || "取消预约失败", "error");
   } finally {
@@ -516,6 +533,16 @@ function auditSearchParams({ includePage = true } = {}) {
   const fields = [["q", "#audit-query"], ["entityType", "#audit-entity-type"], ["dateFrom", "#audit-date-from"], ["dateTo", "#audit-date-to"]];
   fields.forEach(([key, selector]) => { const value = document.querySelector(selector)?.value.trim(); if (value) params.set(key, value); });
   return params;
+}
+
+// A committed write is never reported as a failed save because a derived view failed to reload.
+async function refreshAfterMutation(successMessage, refresh = refreshAuditLogs) {
+  try {
+    await refresh();
+    showToast(successMessage);
+  } catch (error) {
+    showToast(`${successMessage}；关联数据刷新失败，请刷新页面：${error.message || "请稍后重试"}`, "error");
+  }
 }
 
 async function refreshReservationViews() {
@@ -911,8 +938,7 @@ async function updateMaintenanceRecordStatus(select) {
       body: JSON.stringify({ status: select.value })
     });
     applyMaintenanceRecord(record);
-    await refreshAuditLogs();
-    showToast(`维修保养状态已更新为${maintenanceStatusLabel(record.status)}`);
+    await refreshAfterMutation(`维修保养状态已更新为${maintenanceStatusLabel(record.status)}`);
   } catch (error) {
     select.value = previous || "open";
     select.disabled = false;
@@ -951,8 +977,7 @@ async function updateProcurementRecordStatus(select) {
     if (recordIndex >= 0) procurementRecords[recordIndex] = record;
     renderProcurementRecords();
     if (drawerEquipment?.id === record.equipmentId) renderEquipmentActivity(record.equipmentId);
-    await refreshAuditLogs();
-    showToast(`采购验收状态已更新为${procurementStatusLabel(record.status)}`);
+    await refreshAfterMutation(`采购验收状态已更新为${procurementStatusLabel(record.status)}`);
   } catch (error) {
     select.value = previous || "pending";
     select.disabled = false;
@@ -1005,17 +1030,17 @@ function renderUpdateCenter() {
   const manualCommand = document.querySelector("#update-manual-command");
   const manualCopy = document.querySelector("#update-manual-copy");
   const manualVersion = updateInfo?.updateAvailable ? updateInfo.latestVersion : null;
-  if (manualVersion) {
-    manualCommand.textContent = `VERSION=v${manualVersion}
-cd /opt/cipc-labequip/current
-git fetch --tags origin
-git show "$VERSION":scripts/upgrade-lan-from-v1.3.sh > /tmp/upgrade-lan-from-v1.3.sh
+  const manualTag = updateInfo?.tagName || `v${manualVersion}`;
+  if (manualVersion && /^v?\d+\.\d+\.\d+$/.test(manualTag) && manualTag.replace(/^v/, "") === manualVersion) {
+    manualCommand.textContent = `VERSION=${manualTag}
+curl -fL --retry 3 "https://raw.githubusercontent.com/fluter1604191276/CIPC-LabEquip-Hub-Public/$VERSION/scripts/upgrade-lan-from-v1.3.sh" -o /tmp/upgrade-lan-from-v1.3.sh &&
 sudo bash /tmp/upgrade-lan-from-v1.3.sh "$VERSION"`;
     manualCopy.disabled = false;
   } else {
-    manualCommand.textContent = updateInfo
-      ? "当前已经是最新版本，无需执行手动升级。"
-      : "请先点击“检查更新”，获取目标版本后再复制手动升级命令。";
+    manualCommand.textContent = updateInfo?.updateAvailable
+      ? "目标版本信息不完整，请重新检查更新后再复制手动升级命令。"
+      : updateInfo ? "当前已经是最新版本，无需执行手动升级。"
+        : "请先点击“检查更新”，获取目标版本后再复制手动升级命令。";
     manualCopy.disabled = true;
   }
 }
@@ -1285,6 +1310,7 @@ function setResetPasswordModal(open, user = null) {
   resettingUser = open ? user : null;
   setAuthError(document.querySelector("#reset-password-error"));
   document.querySelector("#temporary-password").hidden = true;
+  document.querySelector("#reset-password-form button[type=submit]").disabled = false;
   if (open && user) {
     document.querySelector("#reset-member-avatar").textContent = user.displayName.slice(0, 1);
     document.querySelector("#reset-member-name").textContent = user.displayName;
@@ -1630,11 +1656,25 @@ function setAuthError(element, message = "") {
   element.hidden = !message;
 }
 
+function readPendingLogout() {
+  try { return localStorage.getItem(logoutStorageKey) === "1"; }
+  catch { return false; }
+}
+
+function setPendingLogout(pending) {
+  logoutPending = pending;
+  try {
+    if (pending) localStorage.setItem(logoutStorageKey, "1");
+    else localStorage.removeItem(logoutStorageKey);
+  } catch { /* The current document stays locked even when browser storage is unavailable. */ }
+}
+
 function showLogin(message = "") {
   setGuideModal(false);
   if (disposed) return;
   stopGreetingRefresh();
   stopUpdateStatusPolling();
+  authEpoch += 1;
   currentUser = null;
   document.body.classList.add("auth-pending");
   document.body.classList.remove("authenticated");
@@ -1642,7 +1682,11 @@ function showLogin(message = "") {
   passwordChangeScreen.hidden = true;
   setAuthError(document.querySelector("#login-error"), message);
   document.querySelector("#login-form").reset();
-  window.requestAnimationFrame(() => document.querySelector("#login-username").focus());
+  document.querySelector("#logout-retry").hidden = !logoutPending;
+  document.querySelector("#login-username").disabled = logoutPending;
+  document.querySelector("#login-password").disabled = logoutPending;
+  document.querySelector("#login-form button[type=submit]").disabled = logoutPending;
+  window.requestAnimationFrame(() => document.querySelector(logoutPending ? "#logout-retry" : "#login-username").focus());
 }
 
 function showPasswordChange() {
@@ -1657,6 +1701,7 @@ function showPasswordChange() {
 }
 
 async function loadApplicationData() {
+  const epoch = authEpoch;
   const actualRole = currentUser?.role;
   const roomsPath = ["developer", "admin"].includes(actualRole) ? "/meeting-rooms?includeInactive=true" : "/meeting-rooms";
   const laboratoriesPath = ["developer", "admin"].includes(actualRole) ? "/laboratories?includeInactive=true" : "/laboratories";
@@ -1664,7 +1709,7 @@ async function loadApplicationData() {
   if (actualRole === "developer" || actualRole === "admin") requests.push(apiRequest("/users"), apiRequest(`/audit-logs?page=1&pageSize=${auditPagination.pageSize}`));
   if (actualRole === "developer") requests.push(apiRequest("/update/status"));
   const result = await Promise.all(requests);
-  if (disposed) return;
+  if (disposed || logoutPending || epoch !== authEpoch) return false;
   [equipment, reservations, laboratories, meetingRooms, roomReservations, maintenanceRecords, procurementRecords] = result;
   myReservations = result[7] || [];
   users = result[8] || [];
@@ -1680,8 +1725,9 @@ async function loadApplicationData() {
 }
 
 async function enterApplication() {
+  const epoch = authEpoch;
   await loadApplicationData();
-  if (disposed) return;
+  if (disposed || logoutPending || epoch !== authEpoch || !currentUser) return;
   authScreen.hidden = true;
   passwordChangeScreen.hidden = true;
   document.body.classList.remove("auth-pending");
@@ -1692,8 +1738,26 @@ async function enterApplication() {
 }
 
 async function logout() {
-  try { await apiRequest("/auth/logout", { method: "POST" }); } catch { /* The local session is cleared by the login screen regardless. */ }
-  showLogin();
+  if (logoutRequest) return logoutRequest;
+  setPendingLogout(true);
+  showLogin("正在退出，请稍候…");
+  const retry = document.querySelector("#logout-retry");
+  retry.disabled = true;
+  logoutRequest = (async () => {
+    try {
+      // Login/password responses can carry Set-Cookie. Revoke only after those responses settle.
+      await Promise.allSettled([...pendingAuthRequests]);
+      await apiRequest("/auth/logout", { method: "POST" });
+      setPendingLogout(false);
+      showLogin();
+      return true;
+    } catch (error) {
+      showLogin(`退出尚未完成，请重试。服务端会话尚未确认注销：${error.message || "请检查网络"}`);
+      return false;
+    }
+  })();
+  try { return await logoutRequest; }
+  finally { logoutRequest = null; retry.disabled = false; }
 }
 
 document.querySelectorAll(".equipment-panel .filter-pill[data-filter]").forEach((button) => button.addEventListener("click", () => {
@@ -1855,12 +1919,11 @@ document.querySelector("#reservation-form").addEventListener("submit", async (ev
     renderStats();
     renderNotifications();
     renderMeetingRooms();
-    await refreshReservationViews();
     setModal(false);
     event.target.reset();
     document.querySelector("#reservation-date").value = currentDate;
     setAuthError(document.querySelector("#reservation-time-error"));
-    showToast("预约已成功提交并生效");
+    await refreshAfterMutation("预约已成功提交并生效", refreshReservationViews);
   } catch (error) {
     setAuthError(document.querySelector("#reservation-time-error"), error.message || "预约提交失败");
     showToast(error.message || "预约提交失败", "error");
@@ -1892,10 +1955,9 @@ document.querySelector("#maintenance-form").addEventListener("submit", async (ev
         description: document.querySelector("#maintenance-description").value.trim()
       })
     });
-    applyMaintenanceRecord(record, { prepend: true });
-    await refreshAuditLogs();
     setMaintenanceModal(false);
-    showToast("维修保养记录已保存");
+    applyMaintenanceRecord(record, { prepend: true });
+    await refreshAfterMutation("维修保养记录已保存");
   } catch (error) {
     showToast(error.message || "维修保养记录保存失败", "error");
   } finally {
@@ -1923,10 +1985,9 @@ document.querySelector("#procurement-form").addEventListener("submit", async (ev
       })
     });
     procurementRecords.unshift(record);
-    renderProcurementRecords();
-    await refreshAuditLogs();
     setProcurementModal(false);
-    showToast("采购记录已保存");
+    renderProcurementRecords();
+    await refreshAfterMutation("采购记录已保存");
   } catch (error) {
     showToast(error.message || "采购记录保存失败", "error");
   } finally {
@@ -1959,8 +2020,7 @@ document.querySelector("#meeting-room-form").addEventListener("submit", async (e
     refreshReservationOptions();
     renderMeetingRooms();
     renderFullCalendar();
-    await refreshAuditLogs();
-    showToast(index >= 0 ? "会议室信息已更新" : "会议室已创建");
+    await refreshAfterMutation(index >= 0 ? "会议室信息已更新" : "会议室已创建");
   } catch (error) {
     setAuthError(errorElement, error.message || "会议室保存失败");
   } finally {
@@ -1992,15 +2052,11 @@ document.querySelector("#laboratory-form").addEventListener("submit", async (eve
     setLaboratoryModal(false);
     renderLaboratoryOptions();
     renderAccessData();
-    showToast(index >= 0 ? "实验室信息已更新" : "实验室已创建");
-    // Reload derived equipment/user names, but do not turn a successful save into a retry.
-    try {
+    await refreshAfterMutation(index >= 0 ? "实验室信息已更新" : "实验室已创建", async () => {
       await loadApplicationData();
       const refreshedUser = users.find((user) => user.id === currentUser?.id);
       if (refreshedUser) currentUser = refreshedUser;
-    } catch (error) {
-      showToast(`实验室已保存，关联数据刷新失败，请刷新页面：${error.message}`, "error");
-    }
+    });
   } catch (error) {
     setAuthError(errorElement, error.message || "实验室保存失败");
   } finally {
@@ -2026,11 +2082,10 @@ document.querySelector("#equipment-form").addEventListener("submit", async (even
   try {
     const newEquipment = await apiRequest("/equipment", { method: "POST", body: JSON.stringify(input) });
     equipment.push(newEquipment);
-    renderAll();
-    await refreshAuditLogs();
     setEquipmentModal(false);
     event.target.reset();
-    showToast("设备已保存并加入台账");
+    renderAll();
+    await refreshAfterMutation("设备已保存并加入台账");
   } catch (error) {
     showToast(error.message || "设备保存失败", "error");
   } finally {
@@ -2063,9 +2118,8 @@ document.querySelector("#edit-equipment-form").addEventListener("submit", async 
     setEditEquipmentModal(false);
     renderLaboratoryOptions();
     renderAll();
-    await refreshAuditLogs();
     openEquipmentDetail(updated.id, equipmentRowAction(updated.id));
-    showToast("设备信息已更新");
+    await refreshAfterMutation("设备信息已更新");
   } catch (error) {
     setAuthError(errorElement, error.message || "设备信息更新失败");
   } finally {
@@ -2092,11 +2146,10 @@ document.querySelector("#member-form").addEventListener("submit", async (event) 
         laboratoryId: document.querySelector("#new-member-laboratory").value || null
       })
     });
-    users = await apiRequest("/users");
-    renderAccessData();
-    await refreshAuditLogs();
+    users.push(newUser);
     setMemberModal(false);
-    showToast(`账号 ${newUser.username} 已创建，初始密码为 123456`);
+    renderAccessData();
+    await refreshAfterMutation(`账号 ${newUser.username} 已创建，初始密码为 123456，请单独告知成员并要求首次登录改密`);
   } catch (error) {
     setAuthError(errorElement, error.message || "成员账号创建失败");
   } finally {
@@ -2141,13 +2194,14 @@ document.querySelector("#edit-member-form").addEventListener("submit", async (ev
         laboratoryId: document.querySelector("#edit-member-laboratory").value || null
       })
     });
-    if (updatedUser.id === currentUser.id) currentUser = updatedUser;
-    users = await apiRequest("/users");
-    renderAccessData();
+    const isSelf = updatedUser.id === currentUser?.id;
+    if (isSelf) currentUser = updatedUser;
+    const index = users.findIndex((user) => user.id === updatedUser.id);
+    if (index >= 0) users[index] = updatedUser;
     setEditMemberModal(false);
-    if (updatedUser.id === currentUser.id) applyRoleView(currentUser.role);
-    await refreshAuditLogs();
-    showToast(`成员账号 ${updatedUser.username} 已更新`);
+    renderAccessData();
+    if (isSelf) applyRoleView(currentUser.role);
+    await refreshAfterMutation(`成员账号 ${updatedUser.username} 已更新`);
   } catch (error) {
     setAuthError(errorElement, error.message || "成员账号更新失败");
   } finally {
@@ -2175,16 +2229,18 @@ document.querySelector("#reset-password-form").addEventListener("submit", async 
   setAuthError(errorElement);
   try {
     const resetResult = await apiRequest(`/users/${encodeURIComponent(resettingUser.id)}/reset-password`, { method: "POST" });
-    users = await apiRequest("/users");
-    renderAccessData();
+    const resetUser = resetResult.user || resetResult;
+    const index = users.findIndex((user) => user.id === resetUser.id);
+    if (index >= 0) users[index] = resetUser;
+    resettingUser = null;
     document.querySelector("#temporary-password-value").textContent = resetResult.temporaryPassword || "未返回临时密码";
     document.querySelector("#temporary-password").hidden = false;
-    await refreshAuditLogs();
-    showToast(`${(resetResult.user || resetResult).displayName} 的密码已重置`);
+    renderAccessData();
+    await refreshAfterMutation(`${resetUser.displayName} 的密码已重置`);
   } catch (error) {
     setAuthError(errorElement, error.message || "密码重置失败");
   } finally {
-    submit.disabled = false;
+    submit.disabled = !resettingUser;
   }
 });
 
@@ -2202,6 +2258,7 @@ document.querySelector("#reserve-from-drawer").addEventListener("click", () => {
     return;
   }
   setDrawer(false);
+  setReservationKind("equipment");
   setModal(true);
   document.querySelector("#reservation-equipment").value = drawerEquipment.id;
 });
@@ -2234,9 +2291,8 @@ document.querySelector("#equipment-status-form").addEventListener("submit", asyn
     drawerEquipment = updated;
     renderAll();
     openEquipmentDetail(updated.id, equipmentRowAction(updated.id));
-    await refreshAuditLogs();
     const futureReservations = reservations.filter((item) => item.equipmentId === updated.id && ["approved", "in_use"].includes(item.status) && reservationEndMs(item) > Date.now()).length;
-    showToast(updated.status === "maintenance" && futureReservations
+    await refreshAfterMutation(updated.status === "maintenance" && futureReservations
       ? `设备已设为维修中，另有 ${futureReservations} 项预约需要协调`
       : `设备状态已更新为${updated.label || statusLabels[updated.status]}`);
   } catch (error) {
@@ -2283,8 +2339,9 @@ document.querySelector("#remove-equipment").addEventListener("click", async () =
     drawerEquipment = null;
     setDrawer(false);
     renderAll();
-    await refreshAuditLogs();
-    showToast(result?.forced ? "设备及全部关联记录已强制删除" : "设备已从台账移除");
+    myReservations = myReservations.filter((entry) => entry.equipmentId !== item.id);
+    renderMyReservations();
+    await refreshAfterMutation(result?.forced ? "设备及全部关联记录已强制删除" : "设备已从台账移除");
   } catch (error) {
     showToast(error.message || "设备移除失败", "error");
   } finally {
@@ -2491,26 +2548,40 @@ document.querySelector("#update-apply").addEventListener("click", async () => {
   catch (error) { showToast(error.message || "升级任务提交失败", "error"); button.disabled = false; }
 });
 
+document.querySelector("#logout-retry").addEventListener("click", logout);
+// A logout in another production tab locks this tab too; tutorial storage never reaches this event.
+if (!tutorial) window.addEventListener("storage", (event) => {
+  if (event.key === logoutStorageKey && event.newValue === "1") {
+    logoutPending = true;
+    showLogin("退出尚未完成，请重试以确认服务端会话已注销。");
+  }
+});
+
 document.querySelector("#login-form").addEventListener("submit", async (event) => {
   event.preventDefault();
+  if (logoutPending || readPendingLogout()) { await logout(); return; }
+  const epoch = ++authEpoch;
   const submit = event.submitter;
   const errorElement = document.querySelector("#login-error");
   submit.disabled = true;
   setAuthError(errorElement);
   try {
-    currentUser = await apiRequest("/auth/login", {
+    const user = await apiRequest("/auth/login", {
       method: "POST",
       body: JSON.stringify({
         username: document.querySelector("#login-username").value.trim(),
         password: document.querySelector("#login-password").value
       })
     });
+    if (disposed || logoutPending || epoch !== authEpoch) return;
+    currentUser = user;
     if (currentUser.mustChangePassword) showPasswordChange();
     else await enterApplication();
   } catch (error) {
+    if (disposed || logoutPending || epoch !== authEpoch) return;
     setAuthError(errorElement, error.status === 502 ? "登录服务暂时不可用" : error.message || "登录失败");
   } finally {
-    submit.disabled = false;
+    submit.disabled = logoutPending;
   }
 });
 
@@ -2526,14 +2597,25 @@ document.querySelector("#password-change-form").addEventListener("submit", async
     return;
   }
   submit.disabled = true;
+  const epoch = authEpoch;
   try {
-    currentUser = await apiRequest("/auth/change-password", {
+    const user = await apiRequest("/auth/change-password", {
       method: "POST",
       body: JSON.stringify({ currentPassword: document.querySelector("#current-password").value, newPassword })
     });
-    await enterApplication();
-    showToast("密码已更新");
+    if (disposed || logoutPending || epoch !== authEpoch) return;
+    currentUser = user;
+    passwordChangeScreen.hidden = true;
+    document.querySelector("#password-change-form").reset();
+    await refreshAfterMutation("密码已更新", async () => {
+      try { await enterApplication(); }
+      catch (error) {
+        showLogin("密码已更新，系统数据加载失败，请使用新密码重新登录。");
+        throw error;
+      }
+    });
   } catch (error) {
+    if (disposed || logoutPending || epoch !== authEpoch) return;
     setAuthError(errorElement, error.message || "密码修改失败");
   } finally {
     submit.disabled = false;
@@ -2553,14 +2635,18 @@ document.querySelector("#self-password-form").addEventListener("submit", async (
     return;
   }
   submit.disabled = true;
+  const epoch = authEpoch;
   try {
-    currentUser = await apiRequest("/auth/change-password", {
+    const user = await apiRequest("/auth/change-password", {
       method: "POST",
       body: JSON.stringify({ currentPassword: document.querySelector("#self-current-password").value, newPassword })
     });
+    if (disposed || logoutPending || epoch !== authEpoch) return;
+    currentUser = user;
     setSelfPasswordModal(false);
     showToast("密码已更新，其他登录会话已失效");
   } catch (error) {
+    if (disposed || logoutPending || epoch !== authEpoch) return;
     setAuthError(errorElement, error.message || "密码修改失败");
   } finally {
     submit.disabled = false;
@@ -2569,16 +2655,20 @@ document.querySelector("#self-password-form").addEventListener("submit", async (
 
 async function initializeApp() {
   updateDateLabels();
+  if (logoutPending || readPendingLogout()) { await logout(); return; }
+  const epoch = ++authEpoch;
   try {
     localStorage.removeItem("lab-resource-demo-equipment");
     localStorage.removeItem("lab-resource-demo-reservations");
   } catch { /* Old demo storage is optional. */ }
   try {
-    currentUser = await apiRequest("/auth/session");
+    const user = await apiRequest("/auth/session");
+    if (disposed || logoutPending || epoch !== authEpoch) return;
+    currentUser = user;
     if (currentUser.mustChangePassword) showPasswordChange();
     else await enterApplication();
   } catch (error) {
-    if (disposed) return;
+    if (disposed || logoutPending || epoch !== authEpoch) return;
     showLogin([401, 403].includes(error.status) ? "" : `系统数据加载失败：${error.message || "请稍后重试"}`);
   }
 }

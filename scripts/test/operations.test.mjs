@@ -134,12 +134,14 @@ test("checks database integrity, backup freshness, disk capacity, and scheduled 
     assert.match(backupServiceUnit, /^ReadWritePaths=\/var\/lib\/cipc-labequip\/backups$/m);
     assert.doesNotMatch(backupServiceUnit, /^ReadOnlyPaths=\/var\/lib\/cipc-labequip\/data$/m);
     assert.match(apiServiceUnit, /^Environment=TRUST_PROXY=true$/m);
-    assert.match(upgradeServiceUnit, /^ExecStart=\/usr\/bin\/flock -n \/var\/lib\/cipc-labequip\/data\/upgrade\/\.agent\.flock \/usr\/bin\/node \/opt\/cipc-labequip\/current\/scripts\/upgrade-agent\.mjs --once$/m);
+    assert.match(upgradeServiceUnit, /^ExecStart=\/usr\/bin\/flock -n \/var\/lib\/cipc-labequip\/data\/upgrade\/\.agent\.flock \/usr\/bin\/node \/opt\/cipc-labequip\/current\/scripts\/upgrade-agent\.mjs --once --flock-held$/m);
     assert.match(upgradeServiceUnit, /^TimeoutStartSec=15min$/m);
     assert.match(upgradeServiceUnit, /^Environment=UPDATE_REPOSITORY=fluter1604191276\/CIPC-LabEquip-Hub-Public$/m);
     assert.match(upgradePathUnit, /^PathExists=\/var\/lib\/cipc-labequip\/data\/upgrade\/request\.json$/m);
     assert.match(manualUpgradeScript, /flock -n 9/);
-    assert.match(manualUpgradeScript, /TARGET_COMMIT=\$\(git rev-list -n 1/);
+    assert.match(manualUpgradeScript, /STATE_DIR\/\.agent\.flock/);
+    assert.match(manualUpgradeScript, /--manual-version "\$VERSION" --commit-sha "\$TARGET_COMMIT" --flock-held/);
+    assert.doesNotMatch(manualUpgradeScript, /git switch|CURRENT\/\.git|var\/lock\/cipc/);
     assert.match(apiServiceUnit, /^Environment=SEED_DEMO_USERS=false$/m);
   } finally { rmSync(directory, { recursive: true, force: true }); }
 });

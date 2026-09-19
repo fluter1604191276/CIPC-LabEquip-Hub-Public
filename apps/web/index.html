@@ -25,6 +25,7 @@
           <label>用户名<input id="login-username" name="username" type="text" autocomplete="username" autocapitalize="none" required /></label>
           <label>密码<input id="login-password" name="password" type="password" autocomplete="current-password" required /></label>
           <p class="auth-error" id="login-error" role="alert" hidden></p>
+          <button class="secondary-button" id="logout-retry" type="button" hidden>重试退出</button>
           <button class="primary-button auth-submit" type="submit">登录 <span>→</span></button>
           <p class="auth-footnote">系统不开放自主注册。如需账号，请联系平台管理员。</p>
         </form>
@@ -380,7 +381,7 @@
         <form id="member-form">
           <div class="form-row"><label>姓名<input id="new-member-name" type="text" maxlength="50" placeholder="例如：王小明" required /></label><label>用户名<input id="new-member-username" type="text" minlength="2" maxlength="40" pattern="[a-z][a-z0-9]{1,39}" autocapitalize="none" placeholder="例如：xmwang" required /></label></div>
           <div class="form-row"><label>账号角色<select id="new-member-role" required><option value="member">普通用户</option><option value="admin">系统管理员</option></select></label><label>所属实验室<select id="new-member-laboratory"></select></label></div>
-          <div class="form-note"><span>i</span><span>账号初始密码为 123456。成员首次登录后必须创建新密码，完成前不能进入业务系统。</span></div>
+          <div class="form-note"><span>i</span><span>新建账号初始密码为 123456，请由管理员单独告知成员。成员首次登录后必须创建新密码，完成前不能进入业务系统。</span></div>
           <p class="auth-error" id="member-form-error" role="alert" hidden></p>
           <div class="modal-actions"><button class="secondary-button close-member-modal" type="button">取消</button><button class="primary-button" type="submit">创建账号 <span>→</span></button></div>
         </form>

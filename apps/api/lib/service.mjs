@@ -211,7 +211,16 @@ function effectiveReservationStatus(row, now = Date.now()) {
   return "approved";
 }
 
-function mapReservation(row) {
+// Keep this CASE aligned with effectiveReservationStatus; lists bind one shared instant.
+const effectiveReservationStatusSql = `(CASE
+  WHEN r.status = 'cancelled' THEN 'cancelled'
+  WHEN julianday(r.start_at) IS NULL OR julianday(r.end_at) IS NULL THEN r.status
+  WHEN julianday(r.end_at) <= julianday(?) THEN 'completed'
+  WHEN julianday(r.start_at) <= julianday(?) THEN 'in_use'
+  ELSE 'approved'
+END)`;
+
+function mapReservation(row, now = Date.now()) {
   return {
     id: row.id,
     equipmentId: row.equipment_id,
@@ -227,7 +236,7 @@ function mapReservation(row) {
     requesterName: row.requester_name,
     requesterLab: row.requester_lab,
     requesterUserId: row.requester_user_id || null,
-    status: effectiveReservationStatus(row),
+    status: effectiveReservationStatus(row, now),
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
@@ -246,7 +255,7 @@ function mapMeetingRoom(row) {
   };
 }
 
-function mapRoomReservation(row) {
+function mapRoomReservation(row, now = Date.now()) {
   return {
     id: row.id,
     meetingRoomId: row.meeting_room_id,
@@ -262,7 +271,7 @@ function mapRoomReservation(row) {
     requesterName: row.requester_name,
     requesterLab: row.requester_lab,
     requesterUserId: row.requester_user_id || null,
-    status: effectiveReservationStatus(row),
+    status: effectiveReservationStatus(row, now),
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
@@ -378,6 +387,19 @@ export function createService(database) {
     }
   };
 
+  // Bind HTTP session issuance to the exact credentials that were verified, without
+  // adding password material to user DTOs, JSON responses, or audit summaries.
+  const verifiedCredentials = new WeakMap();
+  const credentialMatches = (current, expected) => Boolean(current?.is_active && expected
+    && current.id === expected.id
+    && current.password_hash === expected.password_hash
+    && current.password_salt === expected.password_salt);
+  const mapVerifiedUser = (row) => {
+    const user = mapUser(row);
+    verifiedCredentials.set(user, { id: row.id, password_hash: row.password_hash, password_salt: row.password_salt });
+    return user;
+  };
+
   return {
     livenessCheck() {
       const checkedAt = new Date().toISOString();
@@ -404,19 +426,31 @@ export function createService(database) {
       if (!row || !row.is_active || !passwordMatches) {
         throw new AppError(401, "INVALID_CREDENTIALS", "用户名或密码错误");
       }
-      const now = new Date().toISOString();
-      database.prepare("UPDATE users SET last_login_at = ?, updated_at = ? WHERE id = ?").run(now, now, row.id);
-      return mapUser({ ...row, last_login_at: now });
+      return transaction(() => {
+        const current = database.prepare(`${userSelect} WHERE u.id = ?`).get(row.id);
+        if (!credentialMatches(current, row)) {
+          throw new AppError(401, "INVALID_CREDENTIALS", "用户名或密码错误");
+        }
+        const now = new Date().toISOString();
+        database.prepare("UPDATE users SET last_login_at = ?, updated_at = ? WHERE id = ?").run(now, now, current.id);
+        return mapVerifiedUser({ ...current, last_login_at: now });
+      });
     },
 
-    createSession(userId) {
-      const token = randomBytes(32).toString("base64url");
-      const createdAt = new Date();
-      const expiresAt = new Date(createdAt.getTime() + sessionLifetimeMs);
-      database.prepare("DELETE FROM sessions WHERE expires_at <= ?").run(createdAt.toISOString());
-      database.prepare("INSERT INTO sessions (token_hash, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)")
-        .run(tokenHash(token), userId, expiresAt.toISOString(), createdAt.toISOString());
-      return { token, expiresAt: expiresAt.toISOString() };
+    createSession(userId, verifiedUser) {
+      return transaction(() => {
+        const current = database.prepare("SELECT * FROM users WHERE id = ?").get(userId);
+        if (!current?.is_active || (verifiedUser !== undefined && !credentialMatches(current, verifiedCredentials.get(verifiedUser)))) {
+          throw new AppError(401, "INVALID_CREDENTIALS", "账号凭据已变更，请重新登录");
+        }
+        const token = randomBytes(32).toString("base64url");
+        const createdAt = new Date();
+        const expiresAt = new Date(createdAt.getTime() + sessionLifetimeMs);
+        database.prepare("DELETE FROM sessions WHERE expires_at <= ?").run(createdAt.toISOString());
+        database.prepare("INSERT INTO sessions (token_hash, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)")
+          .run(tokenHash(token), userId, expiresAt.toISOString(), createdAt.toISOString());
+        return { token, expiresAt: expiresAt.toISOString() };
+      });
     },
 
     getSessionUser(token) {
@@ -442,26 +476,26 @@ export function createService(database) {
       if (await verifyPassword(newPassword, row)) throw new AppError(400, "PASSWORD_UNCHANGED", "新密码不能与当前密码相同");
       const next = hashPassword(newPassword);
       const now = new Date().toISOString();
-      database.exec("BEGIN IMMEDIATE");
-      try {
-        database.prepare(`
+      return transaction(() => {
+        const current = database.prepare("SELECT * FROM users WHERE id = ?").get(userId);
+        if (!current?.is_active) throw new AppError(401, "AUTH_REQUIRED", "账号不可用");
+        const updated = database.prepare(`
           UPDATE users
           SET password_hash = ?, password_salt = ?, must_change_password = 0,
               password_changed_at = ?, updated_at = ?
-          WHERE id = ?
-        `).run(next.hash, next.salt, now, now, userId);
+          WHERE id = ? AND password_hash = ? AND password_salt = ? AND is_active = 1
+        `).run(next.hash, next.salt, now, now, userId, row.password_hash, row.password_salt);
+        if (updated.changes !== 1) {
+          throw new AppError(409, "CREDENTIALS_CHANGED", "账号凭据已变更，请重新登录后再修改密码");
+        }
         database.prepare("DELETE FROM sessions WHERE user_id = ?").run(userId);
         writeAudit({
           actor: actor || mapUser(database.prepare(`${userSelect} WHERE u.id = ?`).get(userId)),
           entityType: "user", entityId: userId, action: "user.password_change",
           summary: { userId }
         });
-        database.exec("COMMIT");
-      } catch (error) {
-        database.exec("ROLLBACK");
-        throw error;
-      }
-      return mapUser(database.prepare(`${userSelect} WHERE u.id = ?`).get(userId));
+        return mapVerifiedUser(database.prepare(`${userSelect} WHERE u.id = ?`).get(userId));
+      });
     },
 
     listLaboratories({ includeInactive = false } = {}) {
@@ -988,6 +1022,8 @@ export function createService(database) {
     },
 
     listReservations(filters = {}) {
+      const now = Date.now();
+      const nowIso = new Date(now).toISOString();
       const clauses = [];
       const values = [];
       const { page, pageSize, offset } = paginationOptions(filters);
@@ -1002,7 +1038,7 @@ export function createService(database) {
       }
       if (status) {
         if (!["approved", "cancelled", "in_use", "completed"].includes(status)) throw new AppError(400, "VALIDATION_ERROR", "预约状态无效");
-        clauses.push("r.status = ?"); values.push(status);
+        clauses.push(`${effectiveReservationStatusSql} = ?`); values.push(nowIso, nowIso, status);
       }
       const start = optionalDate(dateFrom, "开始日期");
       const end = optionalDate(dateTo, "结束日期");
@@ -1011,7 +1047,7 @@ export function createService(database) {
       if (end) { clauses.push("r.reservation_date <= ?"); values.push(end); }
       const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
       const total = database.prepare(`SELECT COUNT(*) AS count FROM reservations r ${where}`).get(...values).count;
-      const items = database.prepare(`${reservationSelect} ${where} ORDER BY r.start_at, r.id LIMIT ? OFFSET ?`).all(...values, pageSize, offset).map(mapReservation);
+      const items = database.prepare(`${reservationSelect} ${where} ORDER BY r.start_at, r.id LIMIT ? OFFSET ?`).all(...values, pageSize, offset).map((row) => mapReservation(row, now));
       return listResult(items, total, { page, pageSize }, filters);
     },
 
@@ -1019,9 +1055,9 @@ export function createService(database) {
       if (!actor?.id) throw new AppError(401, "AUTH_REQUIRED", "请先登录");
       const allowedStatuses = new Set(["approved", "in_use", "completed", "cancelled"]);
       if (status && !allowedStatuses.has(status)) throw new AppError(400, "VALIDATION_ERROR", "预约状态无效");
-      const equipmentRows = database.prepare(`${reservationSelect} WHERE r.requester_user_id = ?`).all(actor.id).map(mapReservation)
+      const equipmentRows = database.prepare(`${reservationSelect} WHERE r.requester_user_id = ?`).all(actor.id).map((row) => mapReservation(row))
         .map((item) => ({ ...item, resourceType: "equipment", resourceId: item.equipmentId, resourceName: item.equipmentName, resourceCode: item.equipmentCode }));
-      const roomRows = database.prepare(`${roomReservationSelect} WHERE r.requester_user_id = ?`).all(actor.id).map(mapRoomReservation)
+      const roomRows = database.prepare(`${roomReservationSelect} WHERE r.requester_user_id = ?`).all(actor.id).map((row) => mapRoomReservation(row))
         .map((item) => ({ ...item, resourceType: "meeting_room", resourceId: item.meetingRoomId, resourceName: item.meetingRoomName, resourceCode: item.meetingRoomCode }));
       return [...equipmentRows, ...roomRows]
         .filter((item) => !status || item.status === status)
@@ -1181,6 +1217,8 @@ export function createService(database) {
     },
 
     listRoomReservations(filters = {}) {
+      const now = Date.now();
+      const nowIso = new Date(now).toISOString();
       const clauses = [];
       const values = [];
       const { page, pageSize, offset } = paginationOptions(filters);
@@ -1195,7 +1233,7 @@ export function createService(database) {
       }
       if (status) {
         if (!["approved", "cancelled", "in_use", "completed"].includes(status)) throw new AppError(400, "VALIDATION_ERROR", "预约状态无效");
-        clauses.push("r.status = ?"); values.push(status);
+        clauses.push(`${effectiveReservationStatusSql} = ?`); values.push(nowIso, nowIso, status);
       }
       const start = optionalDate(dateFrom, "开始日期");
       const end = optionalDate(dateTo, "结束日期");
@@ -1204,7 +1242,7 @@ export function createService(database) {
       if (end) { clauses.push("r.reservation_date <= ?"); values.push(end); }
       const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
       const total = database.prepare(`SELECT COUNT(*) AS count FROM room_reservations r ${where}`).get(...values).count;
-      const items = database.prepare(`${roomReservationSelect} ${where} ORDER BY r.start_at, r.id LIMIT ? OFFSET ?`).all(...values, pageSize, offset).map(mapRoomReservation);
+      const items = database.prepare(`${roomReservationSelect} ${where} ORDER BY r.start_at, r.id LIMIT ? OFFSET ?`).all(...values, pageSize, offset).map((row) => mapRoomReservation(row, now));
       return listResult(items, total, { page, pageSize }, filters);
     },
 

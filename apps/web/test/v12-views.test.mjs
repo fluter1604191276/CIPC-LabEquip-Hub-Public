@@ -100,7 +100,7 @@ test("laboratory management is manager-only and the public shell has no visible 
 
 test("laboratory saves reload derived data and retain legacy equipment assignments", () => {
   assert.match(app, /await loadApplicationData\(\);[\s\S]*const refreshedUser = users\.find/);
-  assert.match(app, /实验室已保存，关联数据刷新失败/);
+  assert.match(app, /关联数据刷新失败，请刷新页面/);
   assert.match(app, /if \(open && user\) \{\s*renderLaboratoryOptions\(\);/);
   assert.match(app, /if \(open && item\) \{\s*renderLaboratoryOptions\(\);/);
   assert.match(app, /保留当前归属/);

@@ -1,4 +1,5 @@
 import { createServer } from "node:http";
+import { isIP } from "node:net";
 import { fileURLToPath } from "node:url";
 import { resolve, dirname } from "node:path";
 import { readFileSync } from "node:fs";
@@ -95,9 +96,14 @@ const loopbackAddresses = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
 function requestAddress(request, trustProxy = false) {
   const socketAddress = request.socket.remoteAddress || "unknown";
   if (!trustProxy || !loopbackAddresses.has(socketAddress)) return socketAddress;
-  const forwarded = request.headers["cf-connecting-ip"] || request.headers["x-forwarded-for"] || request.headers["x-real-ip"];
-  const value = Array.isArray(forwarded) ? forwarded[0] : forwarded;
-  return String(value || "").split(",")[0].trim().slice(0, 100) || socketAddress;
+  // The loopback reverse proxy must overwrite this canonical header. Never trust
+  // raw client-supplied CF/XFF chains; LAN and VPS normalize them differently.
+  const forwarded = request.headers["x-real-ip"];
+  if (typeof forwarded !== "string") return socketAddress;
+  const value = forwarded.trim();
+  if (!isIP(value)) return socketAddress;
+  // Normalize alternate IPv6 spellings so one source cannot split limiter keys.
+  return isIP(value) === 6 ? new URL(`http://[${value}]/`).hostname.slice(1, -1) : value;
 }
 
 export function createFailureLimiter({ maxFailures = 5, windowMs = 15 * 60 * 1000, maxKeys = 10_000, errorCode = "LOGIN_RATE_LIMITED", errorMessage = "登录失败次数过多，请稍后再试" } = {}) {
@@ -192,7 +198,7 @@ export function createApp(service, {
         try {
           const user = await service.authenticate(input.username, input.password);
           loginLimiter.clear(loginKey);
-          const session = service.createSession(user.id);
+          const session = service.createSession(user.id, user);
           sendJson(response, 200, { data: user }, { ...corsHeaders, "Set-Cookie": sessionCookie(session.token, { secure: secureCookie }) });
         } catch (error) {
           if (error instanceof AppError && error.code === "INVALID_CREDENTIALS") {
@@ -241,7 +247,7 @@ export function createApp(service, {
           const input = await readJson(request);
           const changedUser = await service.changePassword(user.id, input.currentPassword, input.newPassword, user);
           passwordChangeLimiter.clear(changeKey);
-          const session = service.createSession(user.id);
+          const session = service.createSession(changedUser.id, changedUser);
           sendJson(response, 200, { data: changedUser }, { ...corsHeaders, "Set-Cookie": sessionCookie(session.token, { secure: secureCookie }) });
         } catch (error) {
           if (error instanceof AppError && error.code === "CURRENT_PASSWORD_INVALID") passwordChangeLimiter.recordFailure(changeKey);
