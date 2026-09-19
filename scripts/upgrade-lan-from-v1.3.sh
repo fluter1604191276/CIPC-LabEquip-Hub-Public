@@ -3,8 +3,8 @@ set -Eeuo pipefail
 
 # Bootstrap from a pinned source archive, never git-switch the live directory.
 # Works for both a v1.3 Git checkout and later archive-only installations.
-VERSION="${1:-v1.4.12}"
-[[ "$VERSION" =~ ^v?(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || { echo "用法：sudo bash upgrade-lan-from-v1.3.sh v1.4.12" >&2; exit 2; }
+VERSION="${1:-v1.4.14}"
+[[ "$VERSION" =~ ^v?(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || { echo "用法：sudo bash upgrade-lan-from-v1.3.sh v1.4.14" >&2; exit 2; }
 [ "$(id -u)" -eq 0 ] || { echo "请通过 sudo 运行升级入口" >&2; exit 1; }
 NODE="${UPDATE_NODE:-$(command -v node)}"
 [ -x "$NODE" ] || { echo "请设置 UPDATE_NODE 为 Node.js 22–24 的绝对路径" >&2; exit 1; }

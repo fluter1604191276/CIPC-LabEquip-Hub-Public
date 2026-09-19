@@ -339,7 +339,7 @@ curl -v http://127.0.0.1:4000/api/health
 
 从 v1.4.0 起，学校部署可以安装一次 `cipc-labequip-upgrade.path`。开发者在“系统升级”页面检查正式稳定版后，服务器会自动完成数据库备份、下载、测试、切换和健康检查。升级代理由 systemd 独立运行，网页不会直接执行服务器命令。
 
-已经部署 v1.3.0 及之后版本的学校，可直接执行 [v1.4.14 快速升级命令](docs/RELEASE_AND_MIGRATION.md#upgrade-v1-4-14)。安装命令和回滚说明见 [发布、迁移与部署流程](docs/RELEASE_AND_MIGRATION.md) 以及 [局域网部署说明](deploy/lan/README.md)。数据库回滚仍需管理员按备份恢复流程显式执行。
+已经部署 v1.3.0 及之后版本的学校，可直接执行 [v1.4.14 一键升级命令](docs/RELEASE_AND_MIGRATION.md#upgrade-v1-4-14)。命令固定从 GitHub `v1.4.14` 标签下载入口，不要求老师理解 Git；升级前后检查、日志查看和失败处理见 [发布、迁移与部署流程](docs/RELEASE_AND_MIGRATION.md) 以及 [局域网部署说明](deploy/lan/README.md)。数据库回滚仍需管理员按备份恢复流程显式执行。
 
 ## 本地开发
 

@@ -82,6 +82,8 @@ test("checks database integrity, backup freshness, disk capacity, and scheduled 
     const upgradeServiceUnit = readFileSync(upgradeServicePath, "utf8");
     const upgradePathUnit = readFileSync(upgradePathPath, "utf8");
     const manualUpgradeScript = readFileSync(manualUpgradePath, "utf8");
+    assert.match(manualUpgradeScript, /VERSION="\${1:-v1\.4\.14}"/);
+    assert.match(manualUpgradeScript, /用法：sudo bash upgrade-lan-from-v1\.3\.sh v1\.4\.14/);
     const lanNginxPath = new URL("../../deploy/lan/nginx.conf", import.meta.url);
     const lanComposePath = new URL("../../deploy/lan/compose.yaml", import.meta.url);
     const lanApiServicePath = new URL("../../deploy/lan/cipc-labequip-api.service", import.meta.url);

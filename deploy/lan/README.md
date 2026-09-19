@@ -25,6 +25,27 @@
 
 部署前需要把防火墙和 `nginx.conf` 白名单收窄到学校实际网段，并优先申请 DHCP 静态租约或校内 DNS 名称。
 
+## 从 v1.3.0 快速升级到 v1.4.14
+
+如果学校当前仍是 v1.3.0，最简单的方式是在 Ubuntu 服务器上直接运行公开仓库固定标签中的升级入口：
+
+```bash
+curl --fail --location --retry 3 --connect-timeout 10 \
+  https://raw.githubusercontent.com/fluter1604191276/CIPC-LabEquip-Hub-Public/v1.4.14/scripts/upgrade-lan-from-v1.3.sh \
+  -o /tmp/upgrade-lan-from-v1.4.14.sh && \
+sudo bash /tmp/upgrade-lan-from-v1.4.14.sh v1.4.14
+```
+
+执行前确认当前 API 正常、服务器可访问 GitHub，并安排维护窗口；不要在升级期间重复执行。脚本会自动创建数据库一致性备份、校验 v1.4.14、运行候选检查、切换代码并重启服务。它只自动回滚代码 release，不自动回滚数据库；备份位于 `/var/lib/cipc-labequip/backups`。完整验收与失败处理见根目录 [发布、迁移与部署流程](../../docs/RELEASE_AND_MIGRATION.md#upgrade-v1-4-14)。
+
+升级后快速确认：
+
+```bash
+node -p "require('/opt/cipc-labequip/current/package.json').version"
+curl -fsS http://127.0.0.1:4000/api/health
+curl -fsS http://127.0.0.1:8080/healthz
+```
+
 ## 开发者一键升级通道（v1.4.0 及之后版本）
 
 升级中心不是网页直接执行 shell 命令，而是“网页提交请求 + systemd 升级代理执行”。首次部署或升级到 v1.4.0 或之后版本时安装一次：

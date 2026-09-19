@@ -255,18 +255,31 @@ git diff --check
 
 <a id="upgrade-v1-4-14"></a>
 
-## v1.3.0 至 v1.4.13 快速升级到 v1.4.14
+## v1.3.0 一键升级到 v1.4.14
 
-如果学校已经按旧版部署，推荐从公开仓库标签获取升级脚本。它会自动备份数据库、获取 v1.4.14、运行检查、更新 API 单元、安装升级中心并重建 Web；不会删除生产数据库。升级前请确认服务器已能访问 GitHub，并预留维护窗口：
+这是给已经部署 v1.3.0 的学校环境准备的最短路径。请**直接在 Ubuntu 生产服务器上执行**，不要在自己的电脑上执行。命令从公开仓库的固定 `v1.4.14` 标签下载升级入口，脚本会再次解析并校验标签对应的提交 SHA，然后交给 v1.4.14 升级代理完成备份、候选包检查、停机切换和健康检查。
+
+升级前请确认：服务器能访问 `github.com` 和 `api.github.com`；当前没有其他升级任务；已预留约 15 分钟维护窗口；不要删除 `/var/lib/cipc-labequip`。先做只读检查：
 
 ```bash
-cd /opt/cipc-labequip/current
-git fetch --tags origin
-git show v1.4.14:scripts/upgrade-lan-from-v1.3.sh > /tmp/upgrade-lan-from-v1.3.sh
-sudo bash /tmp/upgrade-lan-from-v1.3.sh v1.4.14
+readlink -f /opt/cipc-labequip/current
+node -p "require('/opt/cipc-labequip/current/package.json').version"
+sudo systemctl status cipc-labequip-api.service --no-pager
+sudo test -f /var/lib/cipc-labequip/data/production.sqlite && echo "数据库文件存在"
 ```
 
-升级完成后，开发者进入“成员与权限 → 系统升级”即可检查后续稳定版。升级失败时脚本会尝试恢复升级前的代码；数据库快照位于 `/var/lib/cipc-labequip/backups`。升级后必须核对：
+确认无误后执行下面这一条（无需进入 Git 仓库、无需手动 `git fetch`，也不会把生产目录切换到开发分支）：
+
+```bash
+curl --fail --location --retry 3 --connect-timeout 10 \
+  https://raw.githubusercontent.com/fluter1604191276/CIPC-LabEquip-Hub-Public/v1.4.14/scripts/upgrade-lan-from-v1.3.sh \
+  -o /tmp/upgrade-lan-from-v1.4.14.sh && \
+sudo bash /tmp/upgrade-lan-from-v1.4.14.sh v1.4.14
+```
+
+脚本默认路径是 `/opt/cipc-labequip`、数据目录是 `/var/lib/cipc-labequip`；如果学校安装时使用了其他路径，可在命令前通过已安装升级服务的允许环境变量配置，或先按本目录的部署说明调整。脚本使用系统锁防止并行执行，失败时尝试恢复上一份**代码 release**；数据库不会自动降级，升级前生成的 SQLite/WAL 快照会保留在 `/var/lib/cipc-labequip/backups`，不能把代码回滚当成数据库回滚。
+
+升级完成后执行验收：
 
 ```bash
 readlink -f /opt/cipc-labequip/current
@@ -276,6 +289,17 @@ sudo docker compose -f /opt/cipc-labequip/compose.yaml ps
 curl -fsS http://127.0.0.1:4000/api/health
 curl -fsS http://127.0.0.1:8080/healthz
 ```
+
+两条版本检查都应显示 `1.4.14`（`readlink` 指向包含该版本的 release），健康接口应返回成功。升级期间页面短暂显示网络错误属于正常现象；不要重复点击或并行再次执行脚本，先查看状态和日志：
+
+```bash
+cat /var/lib/cipc-labequip/data/upgrade/status.json
+sudo journalctl -u cipc-labequip-upgrade.service -n 120 --no-pager
+```
+
+如果状态为失败，先保留日志和 `/var/lib/cipc-labequip/backups`，不要删除当前/上一 release；代码回滚由代理自动尝试，数据库恢复必须依据备份恢复流程单独执行。升级成功后，开发者进入“成员与权限 → 系统升级”即可检查后续稳定版。
+
+已部署 v1.4.10–v1.4.13 的环境也可使用同一命令；命令中的目标标签保持为 `v1.4.14`。
 
 生产 v1.4.13 的旧升级单元应重新安装带 `--flock-held` 的 v1.4.14 单元，避免外层 flock 与代理内部锁重复：
 

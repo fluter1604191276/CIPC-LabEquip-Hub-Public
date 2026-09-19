@@ -21,14 +21,16 @@
 ## 升级与验证
 
 - 升级前创建包含 WAL 的 SQLite 一致性快照，并保留当前 v1.4.13 release。
-- 已部署 v1.4.11、v1.4.12 或 v1.4.13 的环境可使用同一升级脚本升级到 v1.4.14：
+- 已部署 v1.3.0–v1.4.13 的环境可直接在 Ubuntu 服务器执行固定标签的一键入口（不需要理解 Git）：
 
 ```bash
-cd /opt/cipc-labequip/current
-git fetch --tags origin
-git show v1.4.14:scripts/upgrade-lan-from-v1.3.sh > /tmp/upgrade-lan-from-v1.3.sh
-sudo bash /tmp/upgrade-lan-from-v1.3.sh v1.4.14
+curl --fail --location --retry 3 --connect-timeout 10 \
+  https://raw.githubusercontent.com/fluter1604191276/CIPC-LabEquip-Hub-Public/v1.4.14/scripts/upgrade-lan-from-v1.3.sh \
+  -o /tmp/upgrade-lan-from-v1.4.14.sh && \
+sudo bash /tmp/upgrade-lan-from-v1.4.14.sh v1.4.14
 ```
+
+升级前后检查、日志和失败处理见 [发布、迁移与部署流程](RELEASE_AND_MIGRATION.md#upgrade-v1-4-14)。
 
 - 升级代理会先执行候选包测试、创建备份、切换 API/Web 并检查健康接口；失败时恢复上一代码 release。
 - 升级后确认页面源码中的 `styles.css?v=1.4.14`、`app.js?v=1.4.14`，并验证登录、设备台账、预约和“需要帮助”教程。
