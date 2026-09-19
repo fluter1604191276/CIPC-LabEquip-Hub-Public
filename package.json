@@ -14,7 +14,7 @@
     "dev:web": "node scripts/dev-web.mjs",
     "dev:api": "node apps/api/server.mjs",
     "test": "node --test apps/api/test/*.test.mjs apps/web/test/*.test.mjs scripts/test/*.test.mjs",
-    "check": "node --check apps/api/server.mjs && node --check apps/api/lib/database.mjs && node --check apps/api/lib/service.mjs && node --check apps/web/app.js && node --check apps/web/tutorial.js && pnpm test",
+    "check": "node --check apps/api/server.mjs && node --check apps/api/lib/database.mjs && node --check apps/api/lib/service.mjs && node --check apps/web/app.js && node --check apps/web/tutorial.js && node --check apps/web/tutorial-api.js && pnpm test",
     "backup:db": "node scripts/backup-db.mjs",
     "bootstrap:admin": "node scripts/bootstrap-admin.mjs",
     "restore:drill": "node scripts/restore-drill.mjs",

@@ -4477,3 +4477,9 @@ button:disabled {
 @media (max-width: 760px) {
   .guide-backdrop.interactive .guide-dialog { height: calc(100dvh - 20px); }
 }
+
+/* A running lesson gives the real application copy the same viewport width as production. */
+.guide-backdrop.tutorial-session { padding: 0; }
+.guide-backdrop.tutorial-session .guide-dialog { width:100%; height:100dvh; max-width:none; border-radius:0; }
+.guide-backdrop.tutorial-session .guide-header, .guide-backdrop.tutorial-session .guide-nav { display:none; }
+.guide-backdrop.tutorial-session .guide-layout { display:flex; flex-direction:column; }

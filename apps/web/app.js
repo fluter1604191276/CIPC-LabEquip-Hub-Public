@@ -1,3 +1,67 @@
+// The classroom mounts this same application against an isolated document and data adapter.
+// Production uses the normal browser environment; tutorial mode never falls back to HTTP.
+function mountLabApplication(document, options = {}) {
+const tutorial = options.tutorial === true;
+if (tutorial && typeof options.request !== "function") throw new TypeError("Tutorial mode requires an in-memory request adapter");
+const requestAdapter = options.request;
+const browserWindow = document.defaultView;
+let disposed = false;
+const tutorialTimeouts = new Set();
+const tutorialIntervals = new Set();
+const tutorialFrames = new Set();
+const tutorialStorage = new Map();
+// Run tutorial callbacks in the trusted host; the child document itself has scripts disabled.
+const tutorialWindow = tutorial ? {
+  setTimeout(callback, delay, ...args) {
+    if (disposed) return null;
+    const id = globalThis.setTimeout(() => {
+      tutorialTimeouts.delete(id);
+      if (!disposed) callback(...args);
+    }, delay);
+    tutorialTimeouts.add(id);
+    return id;
+  },
+  clearTimeout(id) { tutorialTimeouts.delete(id); globalThis.clearTimeout(id); },
+  setInterval(callback, delay, ...args) {
+    if (disposed) return null;
+    const id = globalThis.setInterval(() => { if (!disposed) callback(...args); }, delay);
+    tutorialIntervals.add(id);
+    return id;
+  },
+  clearInterval(id) { tutorialIntervals.delete(id); globalThis.clearInterval(id); },
+  requestAnimationFrame(callback) {
+    if (disposed) return null;
+    const id = globalThis.requestAnimationFrame((time) => {
+      tutorialFrames.delete(id);
+      if (!disposed) callback(time);
+    });
+    tutorialFrames.add(id);
+    return id;
+  },
+  cancelAnimationFrame(id) { tutorialFrames.delete(id); globalThis.cancelAnimationFrame(id); },
+  confirm(message) { return !disposed && (options.confirm ? Boolean(options.confirm(message)) : true); }
+} : null;
+const window = tutorial ? new Proxy(browserWindow, {
+  get(target, key) {
+    if (Object.hasOwn(tutorialWindow, key)) return tutorialWindow[key];
+    const value = Reflect.get(target, key, target);
+    return typeof value === "function" ? value.bind(target) : value;
+  }
+}) : browserWindow;
+const HTMLElement = browserWindow.HTMLElement;
+const localStorage = tutorial ? {
+  getItem(key) { return tutorialStorage.get(String(key)) ?? null; },
+  setItem(key, value) { tutorialStorage.set(String(key), String(value)); },
+  removeItem(key) { tutorialStorage.delete(String(key)); }
+} : {
+  getItem(key) { return browserWindow.localStorage.getItem(key); },
+  setItem(key, value) { browserWindow.localStorage.setItem(key, value); },
+  removeItem(key) { browserWindow.localStorage.removeItem(key); }
+};
+const navigator = tutorial ? { clipboard: { async writeText() { throw new Error("演示中不访问剪贴板"); } } } : browserWindow.navigator;
+const fetch = tutorial
+  ? async () => { throw new Error("演示中不发送网络请求"); }
+  : browserWindow.fetch.bind(browserWindow);
 const statusClasses = { available: "status-available", maintenance: "status-maintenance", disabled: "status-disabled", retired: "status-retired" };
 const statusLabels = { available: "可用", maintenance: "维修中", disabled: "已停用", retired: "已报废" };
 const reservationStatusLabels = { approved: "未开始", in_use: "使用中", completed: "已完成", cancelled: "已取消" };
@@ -141,6 +205,7 @@ function stopGreetingRefresh() {
 }
 
 function scheduleGreetingRefresh() {
+  if (disposed) return;
   stopGreetingRefresh();
   const now = new Date();
   updatePageGreeting(now);
@@ -162,6 +227,12 @@ function readStoredRole() {
 }
 
 async function apiRequest(path, options = {}) {
+  if (disposed) throw new DOMException("Application disposed", "AbortError");
+  if (tutorial) {
+    const data = await requestAdapter(path, options);
+    if (disposed) throw new DOMException("Application disposed", "AbortError");
+    return data;
+  }
   const { signal = AbortSignal.timeout(15_000), headers = {}, ...requestOptions } = options;
   let response;
   try {
@@ -255,6 +326,7 @@ function csvCell(value) {
 }
 
 function exportEquipmentDirectory() {
+  if (tutorial) { showToast("演示中不导出真实文件"); return; }
   const rows = filteredDirectoryEquipment();
   if (!rows.length) {
     showToast("当前筛选条件下没有可导出的设备");
@@ -915,6 +987,7 @@ function renderAccessData() {
 }
 
 function renderUpdateCenter() {
+  if (disposed) return;
   const current = document.querySelector("#update-current-version");
   const latest = document.querySelector("#update-latest-version");
   const summary = document.querySelector("#update-summary");
@@ -970,6 +1043,7 @@ async function refreshUpdateStatus() {
 }
 
 function renderAll() {
+  if (disposed) return;
   refreshReservationOptions();
   renderEquipment();
   renderDirectory();
@@ -987,6 +1061,7 @@ function renderAll() {
 }
 
 function showToast(message, tone = "success") {
+  if (disposed) return;
   const toast = document.querySelector("#toast");
   document.querySelector("#toast-message").textContent = message;
   document.querySelector(".toast-check").textContent = tone === "error" ? "!" : "✓";
@@ -1013,6 +1088,7 @@ function focusableDialogElements(container) {
 }
 
 function setManagedDialog(container, open, initialFocus = null) {
+  if (disposed) return;
   const wasOpen = container.classList.contains("open");
   if (open && !wasOpen) dialogReturnFocus.set(container, document.activeElement);
   container.classList.toggle("open", open);
@@ -1293,6 +1369,7 @@ function applyRoleView(role, announce = false) {
 }
 
 function setGuideModal(open) {
+  if (disposed) return;
   const wasOpen = guideModal.classList.contains("open");
   if (open && !wasOpen) {
     activateGuideSection("practice");
@@ -1313,11 +1390,13 @@ function clearGuidePractice() {
   guidePracticeCleanup?.();
   guidePracticeCleanup = null;
   guidePracticeFrame.onload = null;
+  guideModal.classList.remove("tutorial-session");
   guidePracticeFrame.removeAttribute("srcdoc");
   guidePracticeFrame.hidden = true;
 }
 
 async function loadGuidePractice() {
+  if (tutorial || disposed) return;
   if (!guideModal.classList.contains("open") || !currentUser) return;
   if (guidePracticeRole === currentRole) return;
   clearGuidePractice();
@@ -1333,17 +1412,20 @@ async function loadGuidePractice() {
     const response = await fetch("./tutorial.html", { credentials: "omit", signal: AbortSignal.any([controller.signal, AbortSignal.timeout(10_000)]) });
     if (!response.ok) throw new Error("Tutorial load failed");
     const source = await response.text();
+    const assets = await TutorialModel.loadAssets(AbortSignal.any([controller.signal, AbortSignal.timeout(10_000)]));
     if (!source.includes('<body data-role="member">')) throw new Error("Invalid tutorial document");
-    if (controller.signal.aborted || guidePracticeAbort !== controller) return;
+    if (disposed || controller.signal.aborted || guidePracticeAbort !== controller) return;
     const role = ["member", "admin", "developer"].includes(currentRole) ? currentRole : "member";
     // Mount from the trusted host script; child scripts and native submissions stay disabled.
     // This also works under script-src 'self' and on LAN hosts without extra browser permissions.
     guidePracticeFrame.onload = () => {
-      if (controller.signal.aborted || guidePracticeAbort !== controller) return;
+      if (disposed || controller.signal.aborted || guidePracticeAbort !== controller) return;
       if (!guidePracticeFrame.contentDocument?.querySelector("#classroom")) return;
       try {
         guidePracticeFrame.hidden = false;
         guidePracticeCleanup = TutorialModel.mount(guidePracticeFrame.contentDocument, {
+          assets,
+          onStageChange: (active) => guideModal.classList.toggle("tutorial-session", active),
           onClose: () => setGuideModal(false),
           onHelp: () => activateGuideSection("start", true)
         });
@@ -1364,10 +1446,10 @@ async function loadGuidePractice() {
     }, 10_000);
     guidePracticeFrame.srcdoc = source
       .replace("script-src 'self'", "script-src 'none'")
-      .replace('<script src="./tutorial.js"></script>', "")
+      .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "")
       .replace('<body data-role="member">', `<body data-role="${role}">`);
   } catch {
-    if (controller.signal.aborted || guidePracticeAbort !== controller) return;
+    if (disposed || controller.signal.aborted || guidePracticeAbort !== controller) return;
     guidePracticeRole = null;
     loading.hidden = true;
     error.hidden = false;
@@ -1550,6 +1632,7 @@ function setAuthError(element, message = "") {
 
 function showLogin(message = "") {
   setGuideModal(false);
+  if (disposed) return;
   stopGreetingRefresh();
   stopUpdateStatusPolling();
   currentUser = null;
@@ -1563,6 +1646,7 @@ function showLogin(message = "") {
 }
 
 function showPasswordChange() {
+  if (disposed) return;
   document.body.classList.add("auth-pending");
   authScreen.hidden = true;
   passwordChangeScreen.hidden = false;
@@ -1580,6 +1664,7 @@ async function loadApplicationData() {
   if (actualRole === "developer" || actualRole === "admin") requests.push(apiRequest("/users"), apiRequest(`/audit-logs?page=1&pageSize=${auditPagination.pageSize}`));
   if (actualRole === "developer") requests.push(apiRequest("/update/status"));
   const result = await Promise.all(requests);
+  if (disposed) return;
   [equipment, reservations, laboratories, meetingRooms, roomReservations, maintenanceRecords, procurementRecords] = result;
   myReservations = result[7] || [];
   users = result[8] || [];
@@ -1596,6 +1681,7 @@ async function loadApplicationData() {
 
 async function enterApplication() {
   await loadApplicationData();
+  if (disposed) return;
   authScreen.hidden = true;
   passwordChangeScreen.hidden = true;
   document.body.classList.remove("auth-pending");
@@ -1665,6 +1751,7 @@ document.querySelector("#audit-reset").addEventListener("click", async () => {
 document.querySelector("#audit-previous").addEventListener("click", async () => { auditPagination.page -= 1; await refreshAuditLogs(); });
 document.querySelector("#audit-next").addEventListener("click", async () => { auditPagination.page += 1; await refreshAuditLogs(); });
 document.querySelector("#audit-export").addEventListener("click", () => {
+  if (tutorial) { showToast("演示中不导出真实文件"); return; }
   const link = document.createElement("a");
   link.href = `/api/audit-logs.csv?${auditSearchParams({ includePage: false })}`;
   link.download = `操作审计-${currentDate}.csv`;
@@ -2491,8 +2578,30 @@ async function initializeApp() {
     if (currentUser.mustChangePassword) showPasswordChange();
     else await enterApplication();
   } catch (error) {
+    if (disposed) return;
     showLogin([401, 403].includes(error.status) ? "" : `系统数据加载失败：${error.message || "请稍后重试"}`);
   }
 }
 
-initializeApp();
+const ready = initializeApp();
+return {
+  ready,
+  destroy() {
+    if (disposed) return;
+    disposed = true;
+    stopGreetingRefresh();
+    stopUpdateStatusPolling();
+    clearGuidePractice();
+    for (const id of tutorialTimeouts) globalThis.clearTimeout(id);
+    for (const id of tutorialIntervals) globalThis.clearInterval(id);
+    for (const id of tutorialFrames) globalThis.cancelAnimationFrame(id);
+    tutorialTimeouts.clear();
+    tutorialIntervals.clear();
+    tutorialFrames.clear();
+    tutorialStorage.clear();
+  }
+};
+}
+
+globalThis.LabApplication = { mount: mountLabApplication };
+if (typeof document !== "undefined" && document.querySelector("#equipment-table")) mountLabApplication(document);

@@ -89,6 +89,7 @@ test('search, monetary fields, roles and space definitions validate tutorial inp
   const m = model();
   const cases = [
     ['equipment','search:equipment',{query:'no match'}],
+    ['equipment','search:equipment',{query:'示波器x'}],
     ['maintenance','submit:maintenance',{cost:'-1'}],
     ['maintenance','submit:maintenance',{cost:'NaN'}],
     ['procurement','submit:procurement',{amount:'-5'}],
@@ -134,22 +135,20 @@ test('virtual form values never change production app state and restart clears p
   const second = m.createState('member'); assert.equal(JSON.stringify(second.values),'{}');
 });
 
-test('tutorial has no business IO and its embedded document disables scripts and submissions', () => {
-  assert.match(html,/connect-src 'none'/); assert.match(html,/form-action 'none'/); assert.match(html,/default-src 'none'/);
-  assert.doesNotMatch(script,/\bfetch\s*\(|XMLHttpRequest|WebSocket|EventSource|sendBeacon|localStorage|sessionStorage|indexedDB|document\.cookie|apiRequest/);
-  assert.match(html, /<script src="\.\/tutorial\.js"><\/script>/);
-  assert.doesNotMatch(html, /<script>/);
-  assert.match(html, /script-src 'self'/);
+test('tutorial reuses production source assets in a script-disabled document', () => {
+  assert.match(html,/connect-src 'self'/); assert.match(html,/form-action 'none'/);
+  assert.match(script,/fetch\('\.\/index\.html', options\)/);
+  assert.match(script,/fetch\('\.\/styles\.css', options\)/);
+  assert.doesNotMatch(script,/fetch\([^)]*api|XMLHttpRequest|WebSocket|localStorage|sessionStorage|document\.cookie/);
+  assert.match(script,/LabApplication\.mount\(doc,\{tutorial:true,request/);
+  assert.match(script,/TutorialAPI\.create/);
+  assert.match(script,/style\.textContent = assets\.css/);
+  assert.match(script,/parsed\.querySelectorAll\('script,link,base,meta\[http-equiv\]'/);
+  assert.match(script,/script-src 'none'; connect-src 'none'; form-action 'none'/);
+  assert.doesNotMatch(script,/function sceneView|class="sim-nav"|class="workbench"/);
   assert.match(shell,/<iframe[^>]+id="guide-practice-frame"[^>]+sandbox="allow-same-origin"/);
-  assert.doesNotMatch(shell,/<iframe[^>]+allow-scripts/);
-  assert.match(app,/guidePracticeFrame\.srcdoc = source/);
   assert.match(app,/TutorialModel\.mount\(guidePracticeFrame\.contentDocument/);
-  assert.match(app,/guidePracticeLoadTimer/);
   assert.match(app,/guidePracticeCleanup\?\.\(\)/);
-  assert.match(app,/script-src 'none'/);
-  assert.match(app,/guidePracticeFrame\.removeAttribute\("srcdoc"\)/);
-  assert.match(script,/event\.preventDefault\(\)/);
-  assert.match(script,/visibilitychange/); assert.match(script,/pagehide/);
 });
 
 test('guide integration keeps text reference and loads tutorial only for an open signed-in guide', () => {
@@ -162,11 +161,32 @@ test('guide integration keeps text reference and loads tutorial only for an open
   assert.match(shell,/id="guide-practice-retry"/);
 });
 
-// Native form submission is intentionally blocked by the iframe sandbox.
-test('sandbox practice submits through local controls and handles Enter without navigation', () => {
-  assert.match(script, /type="button" data-submit/);
-  assert.doesNotMatch(script, /type="submit"/);
-  assert.match(script, /function submitPractice\(form\)/);
-  assert.match(script, /event\.key === "Enter"/);
-  assert.match(script, /submitPractice\(event\.target\.closest\("form"\)\)/);
+test('tutorial uses actual controls without invented search, cancel or acceptance confirmation', () => {
+  const m=model();
+  assert.equal(m.controls['search:equipment'],'#directory-search');
+  assert.ok(m.controls['open:equipment'].includes('.directory-row-action'));
+  assert.ok(m.controls['accept:procurement'].includes('.procurement-record-status'));
+  assert.equal(m.lessons.find(l=>l.id==='cancel').steps.some(step=>step.action==='confirm:cancel'),false);
+  assert.match(script,/new SubmitEvent\('submit'/);
+  assert.match(script,/form\.checkValidity\(\)/);
+  assert.match(script,/requiresWrite/);
+});
+
+test('shared app runtime requires a memory adapter before touching a tutorial document', () => {
+  const context={};vm.runInNewContext(app,context);
+  assert.equal(typeof context.LabApplication.mount,'function');
+  assert.throws(()=>context.LabApplication.mount(null,{tutorial:true}),/in-memory request adapter/);
+  assert.match(app,/if \(tutorial\) \{/);
+  assert.match(app,/await requestAdapter\(path, options\)/);
+  assert.match(app,/演示中不发送网络请求/);
+  assert.match(app,/tutorialStorage\.clear\(\)/);
+  assert.match(app,/for \(const id of tutorialTimeouts\)/);
+});
+
+test('pause cancels only demo timers, while action completion has its own lifecycle', () => {
+  assert.match(script,/actionTimer=setTimeout/);
+  const clear = script.match(/function clearDemo\(\) \{[^\n]+/)[0];
+  assert.doesNotMatch(clear,/actionTimer/);
+  assert.match(script,/generation\+\+; clearDemo\(\); clearTimeout\(actionTimer\)/);
+  assert.match(script,/doc\.querySelector\(controls\['open:equipment'\]\)/);
 });

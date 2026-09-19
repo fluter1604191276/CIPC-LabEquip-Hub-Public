@@ -26,16 +26,16 @@
 ## Design principles
 - One actionable instruction per step, highlight the target, keep the relevant UI visible.
 - Practice never advances on the wrong action; examples explain expected input.
-- Preserve actual navigation/field labels while simplifying unrelated UI.
+- Reuse production index.html, styles.css and application rendering/handlers, not separate approximations. Teaching chrome and fake data are the only deliberate differences.
 
 ## Visual language
 - Reuse navy #1d2736, orange #bf512f, white cards, gray canvas; system Chinese fonts.
-- Main tutorial text ≥14px, secondary ≥12px; clear borders and 8–12px radii.
+- Teaching chrome text ≥14px, secondary ≥12px; business UI retains exact production typography, spacing and token values.
 - Motion limited to demonstration target feedback; respect reduced motion.
 
 ## Components
-- Existing guide modal, role tabs, focus return. New sandboxed tutorial iframe and inline HTML classroom.
-- Catalog cards, step coach, simulated sidebar/list/form, progress, pause, previous/restart/exit.
+- Existing guide modal, role tabs, focus return. Script-disabled tutorial iframe with the same production application mounted into its own document.
+- Catalog cards and a collapsible step coach surrounding actual production sidebar/list/form controls; progress, pause, previous/restart/exit.
 
 ## Accessibility
 - Labeled inputs, semantic buttons/forms, visible focus, status/error announcements.
@@ -43,7 +43,7 @@
 - No color-only instructions; examples and step titles accompany target highlighting.
 
 ## Responsive behavior
-- Desktop: coach beside simulated workbench; narrow screens: coach above stage, wrapping controls.
+- Desktop: lesson expands to viewport width, with movable-side floating coach. Narrow screens: original production menu/breakpoints and a collapsible coach.
 - Tutorial scrolls internally without horizontal overflow at 390px; large enough touch targets.
 
 ## Interaction states
@@ -57,9 +57,9 @@
 - Use fictional names/resources, explicit sample date/time, and no production credentials.
 
 ## Implementation constraints
-- No dependencies or frontend framework; a tutorial HTML file with inline CSS and one local classic script.
+- No dependencies or framework. Tutorial HTML/CSS is teaching chrome only. Shared app.js factory and a pure in-memory tutorial API provide all business rendering/actions.
 - Embedded through srcdoc with sandbox allow-same-origin only (no scripts/forms). A trusted host script mounts the simulator against its document. Child CSP denies scripts/connections/forms; production CSP stays unchanged.
-- The simulator uses only its passed document and virtual state, never business APIs, storage or production data. Host callbacks only close the guide or open text help.
+- Application tutorial mode requires a memory request adapter with no network fallback; storage, clipboard, export and timers are isolated. Only fixed index.html/styles.css assets load over the network. Host callbacks close, open text help, or resize the guide.
 - Node behavioral tests plus browser desktop/mobile/isolation/keyboard checks before delivery.
 - This development task does not publish a Release or switch production.
 
