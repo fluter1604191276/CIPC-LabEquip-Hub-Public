@@ -175,6 +175,8 @@
     if (!html.includes('id="equipment-table"') || !css.includes('.app-shell')) throw new Error('正式界面资源不完整');
     return {html,css};
   }
+  // WebKit needs sandbox allow-scripts even for trusted host-owned event handlers.
+  // Strip executable content and block child scripts via CSP rather than the sandbox flag.
   function productionDocument(assets) {
     const parsed = new DOMParser().parseFromString(assets.html, 'text/html');
     parsed.querySelectorAll('script,link,base,meta[http-equiv]').forEach(node => node.remove());
@@ -278,7 +280,7 @@
         root.innerHTML=`<section class="done"><span class="success-icon">✓</span><p class="eyebrow">${state.mode==='demo'?'演示结束':'练习完成'}</p><h1 tabindex="-1" data-focus>${entry.title}</h1><p>刚才操作的是与正式系统同源的界面。</p><ul>${entry.takeaways.map(t=>`<li>${esc(t)}</li>`).join('')}</ul><p class="notice">只有虚拟数据发生了变化。真实业务请退出教程后再操作。</p><div class="controls"><button class="primary" data-control="practice">自己再练一次</button><button data-control="previous">回看最后一步</button><button data-control="catalog">返回教程列表</button></div></section>`; focusHeading(); return;
       }
       stageMode(true);
-      root.innerHTML=`<div class="practice-topline"><strong>${esc(entry.title)}</strong><span>${state.mode==='demo'?'自动演示':'动手练习'}</span><button data-control="catalog">教程列表</button></div><div id="practice-loading" role="status">正在打开正式界面的演示副本…</div><iframe id="production-practice-frame" title="正式界面演示副本：仅虚拟数据" sandbox="allow-same-origin" hidden></iframe>${coachMarkup(entry,item)}`;
+      root.innerHTML=`<div class="practice-topline"><strong>${esc(entry.title)}</strong><span>${state.mode==='demo'?'自动演示':'动手练习'}</span><button data-control="catalog">教程列表</button></div><div id="practice-loading" role="status">正在打开正式界面的演示副本…</div><iframe id="production-practice-frame" title="正式界面演示副本：仅虚拟数据" sandbox="allow-same-origin allow-scripts" hidden></iframe>${coachMarkup(entry,item)}`;
       if(view.innerWidth<=760) { root.querySelector('#practice-coach').classList.add('collapsed');root.querySelector('.coach-toggle').setAttribute('aria-expanded','false'); }
       try {
         const assets=await getAssets();

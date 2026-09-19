@@ -10,7 +10,7 @@ const tutorialTimeouts = new Set();
 const tutorialIntervals = new Set();
 const tutorialFrames = new Set();
 const tutorialStorage = new Map();
-// Run tutorial callbacks in the trusted host; the child document itself has scripts disabled.
+// Run tutorial callbacks in the trusted host; child CSP prohibits its own scripts.
 const tutorialWindow = tutorial ? {
   setTimeout(callback, delay, ...args) {
     if (disposed) return null;
@@ -1416,8 +1416,8 @@ async function loadGuidePractice() {
     if (!source.includes('<body data-role="member">')) throw new Error("Invalid tutorial document");
     if (disposed || controller.signal.aborted || guidePracticeAbort !== controller) return;
     const role = ["member", "admin", "developer"].includes(currentRole) ? currentRole : "member";
-    // Mount from the trusted host script; child scripts and native submissions stay disabled.
-    // This also works under script-src 'self' and on LAN hosts without extra browser permissions.
+    // Safari requires allow-scripts for host-owned event listeners too. Child CSP still blocks its own scripts.
+    // Both iframe levels use this policy; requests remain on the required in-memory adapter.
     guidePracticeFrame.onload = () => {
       if (disposed || controller.signal.aborted || guidePracticeAbort !== controller) return;
       if (!guidePracticeFrame.contentDocument?.querySelector("#classroom")) return;

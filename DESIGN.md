@@ -34,7 +34,7 @@
 - Motion limited to demonstration target feedback; respect reduced motion.
 
 ## Components
-- Existing guide modal, role tabs, focus return. Script-disabled tutorial iframe with the same production application mounted into its own document.
+- Existing guide modal, role tabs, focus return. Tutorial iframe with child scripts blocked by CSP and the same production application mounted by the trusted host into its own document.
 - Catalog cards and a collapsible step coach surrounding actual production sidebar/list/form controls; progress, pause, previous/restart/exit.
 
 ## Accessibility
@@ -58,7 +58,7 @@
 
 ## Implementation constraints
 - No dependencies or framework. Tutorial HTML/CSS is teaching chrome only. Shared app.js factory and a pure in-memory tutorial API provide all business rendering/actions.
-- Embedded through srcdoc with sandbox allow-same-origin only (no scripts/forms). A trusted host script mounts the simulator against its document. Child CSP denies scripts/connections/forms; production CSP stays unchanged.
+- Both srcdoc iframe levels use sandbox allow-same-origin allow-scripts so Safari can dispatch host-owned event listeners; native forms, popups and top navigation remain disabled. Script elements are removed, and child CSP script-src 'none' blocks child execution. The inner business document additionally denies connections, and both child documents deny form destinations. The trusted host mounts controllers with a mandatory memory request adapter; this is not an isolation boundary for untrusted scripts. Production CSP stays unchanged.
 - Application tutorial mode requires a memory request adapter with no network fallback; storage, clipboard, export and timers are isolated. Only fixed index.html/styles.css assets load over the network. Host callbacks close, open text help, or resize the guide.
 - Node behavioral tests plus browser desktop/mobile/isolation/keyboard checks before delivery.
 - This development task does not publish a Release or switch production.

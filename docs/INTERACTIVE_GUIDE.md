@@ -29,7 +29,7 @@
 - `apps/web/app.js`：`LabApplication.mount(document, options)` 工厂。普通生产页面照常启动，教学模式强制提供内存请求适配器。
 - `apps/web/test/tutorial*.test.mjs`：课程与内存接口、隔离、回放和回归测试。
 
-演示文档使用 `sandbox="allow-same-origin"`，不启用子文档脚本、表单导航或弹窗。文档 CSP 设置 `script-src 'none'; connect-src 'none'; form-action 'none'`。可信宿主脚本挂载应用控制器，并拦截原生表单提交，通过受控 SubmitEvent 执行原表单处理。
+外层课堂与内层业务演示 iframe 均使用 `sandbox="allow-same-origin allow-scripts"`，让 Safari 正常执行可信宿主注册的事件监听器；仍未开放原生表单导航、弹窗或顶层导航。加载时移除子文档的脚本元素，并以 CSP `script-src 'none'` 阻止子文档脚本执行；内层业务演示文档另设 `connect-src 'none'; form-action 'none'`，外层也保留 `form-action 'none'`。可信宿主脚本挂载应用控制器，教学模式强制提供内存请求适配器，并拦截原生表单提交，通过受控 SubmitEvent 执行原表单处理。
 
 **关键隔离来自应用请求边界，而不是仅靠 iframe CSP。** 教学 apiRequest 直接进入内存适配器，未知路由拒绝处理，绝不回退真实 HTTP；其他 fetch、剪贴板、下载和 localStorage 也被隔离。只读取固定的静态界面资源。控制器属于可信主应用代码，不宣称其自身缺乏访问主页面的能力。
 
@@ -52,9 +52,20 @@ WEB_PORT=3100 node scripts/dev-web.mjs
 - 390px 手机完整会议室预约流程与教学面板折叠。
 - 本地截图：`output/playwright/production-guide-overview.png`、`production-guide-reservation.png`、`production-guide-mobile-menu.png`、`production-guide-mobile-form.png`、`production-parity-embedded.png`。
 
-### 本轮结果
+### 界面对齐阶段结果（此前验证）
 
 - `pnpm check`：139/139 通过。
 - 九项真实控件练习均完成，业务请求外发为零。
 - 生产 CSP 下嵌入模式：预约表单控件签名和侧栏关键计算样式一致；课程视口宽度 1440px，与宿主浏览器一致。
 - 错误搜索、目标设备校验、详情高亮、退出清理通过；自动演示和手机会议室全流程通过。
+
+### Safari 点击无响应修复（2026-09-19）
+
+- 问题：用户在 Safari 进入认识界面课程后，点击高亮“设备台账”没有反应。此前浏览器验收以 Chromium 为主，未覆盖这一 WebKit 差异。
+- 修复前复现：Playwright WebKit 26.6 中实际点击后仍停在第 1 步与 `overview-view`，控制台报告 sandbox 未设置 `allow-scripts` 导致脚本执行被阻止。页面渲染成功并不代表交互可用。
+- 原因：WebKit 会阻止脚本受限 iframe 内的事件处理，即使监听器由同源父页面注册；因此仅从宿主挂载控制器也会受影响。官方问题记录：WebKit Bug 218086，`https://bugs.webkit.org/show_bug.cgi?id=218086`。
+- 修复：两层 iframe 同时增加 `allow-scripts`，不再依靠该 sandbox 位禁止脚本；继续移除脚本元素、使用子文档 `script-src 'none'`，并保留强制内存接口与其余浏览器限制。仅修复内层时，嵌入教程仍会受到外层 sandbox 限制。
+- 修复后已确认：同一 WebKit 引擎中第一步真实点击可以推进。新增静态回归断言覆盖两层 sandbox、CSP、脚本移除和必需的内存适配器。
+- 本轮完整回归：WebKit 26.6 与 Chromium 各自跑通九项教程，业务网络请求为零；WebKit 嵌入式指南在生产 CSP 下通过预约流程与退出清理，自动演示和暂停通过。
+- 子文档脚本注入探针被 CSP 阻止；`pnpm check` 为 140/140。浏览器引擎自动化与用户原生 Safari 窗口实测分开记述：本条完整回归使用 Playwright WebKit。
+- 本次变更仅限本地界面兼容性修复，未执行生产接口操作或切换生产。

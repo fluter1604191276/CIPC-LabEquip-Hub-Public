@@ -135,7 +135,7 @@ test('virtual form values never change production app state and restart clears p
   const second = m.createState('member'); assert.equal(JSON.stringify(second.values),'{}');
 });
 
-test('tutorial reuses production source assets in a script-disabled document', () => {
+test('tutorial reuses production assets with CSP-blocked scripts and WebKit-compatible event sandbox', () => {
   assert.match(html,/connect-src 'self'/); assert.match(html,/form-action 'none'/);
   assert.match(script,/fetch\('\.\/index\.html', options\)/);
   assert.match(script,/fetch\('\.\/styles\.css', options\)/);
@@ -146,7 +146,7 @@ test('tutorial reuses production source assets in a script-disabled document', (
   assert.match(script,/parsed\.querySelectorAll\('script,link,base,meta\[http-equiv\]'/);
   assert.match(script,/script-src 'none'; connect-src 'none'; form-action 'none'/);
   assert.doesNotMatch(script,/function sceneView|class="sim-nav"|class="workbench"/);
-  assert.match(shell,/<iframe[^>]+id="guide-practice-frame"[^>]+sandbox="allow-same-origin"/);
+  assert.match(shell,/<iframe[^>]+id="guide-practice-frame"[^>]+sandbox="allow-same-origin allow-scripts"/);
   assert.match(app,/TutorialModel\.mount\(guidePracticeFrame\.contentDocument/);
   assert.match(app,/guidePracticeCleanup\?\.\(\)/);
 });
@@ -189,4 +189,18 @@ test('pause cancels only demo timers, while action completion has its own lifecy
   assert.doesNotMatch(clear,/actionTimer/);
   assert.match(script,/generation\+\+; clearDemo\(\); clearTimeout\(actionTimer\)/);
   assert.match(script,/doc\.querySelector\(controls\['open:equipment'\]\)/);
+});
+
+test('both classroom iframe levels allow Safari host listeners while child scripts stay blocked', () => {
+  const outer = shell.match(/<iframe[^>]+id="guide-practice-frame"[^>]*>/)?.[0];
+  const inner = script.match(/<iframe[^>]+id="production-practice-frame"[^>]*>/)?.[0];
+  for (const frame of [outer, inner]) {
+    assert.ok(frame);
+    assert.match(frame, /sandbox="allow-same-origin allow-scripts"/);
+    assert.doesNotMatch(frame, /allow-forms|allow-popups|allow-top-navigation/);
+  }
+  assert.match(app, /replace\("script-src 'self'", "script-src 'none'"\)/);
+  assert.match(script, /script-src 'none'; connect-src 'none'; form-action 'none'/);
+  assert.match(script, /parsed\.querySelectorAll\('script,link,base,meta\[http-equiv\]'/);
+  assert.match(app, /Tutorial mode requires an in-memory request adapter/);
 });
