@@ -253,20 +253,24 @@ git diff --check
 - 生产数据库、备份、临时密码和私钥没有进入 Git 历史；
 - 发布标签对应的提交已经推送，并且老师能从标签复现部署。
 
-<a id="upgrade-v1-4-7"></a>
+<a id="upgrade-v1-4-8"></a>
 
-## v1.3.0/v1.3.1/v1.4.0/v1.4.1/v1.4.2/v1.4.3/v1.4.4/v1.4.6 快速升级到 v1.4.7
+## v1.3.0/v1.3.1/v1.4.0/v1.4.1/v1.4.2/v1.4.3/v1.4.4/v1.4.6/v1.4.7 快速升级到 v1.4.8
 
-如果学校已经按旧版部署，最简单的方式是在服务器执行下面的命令。它会自动备份数据库、获取 v1.4.7、运行测试、更新 API 单元、安装升级中心并重建 Web；不会覆盖 `/opt/cipc-labequip/nginx.conf`，也不会删除生产数据库：
+如果学校已经按旧版部署，最简单的方式是在服务器执行下面的命令。它会自动备份数据库、获取 v1.4.8、运行测试、更新 API 单元、安装升级中心并重建 Web；不会覆盖 `/opt/cipc-labequip/nginx.conf`，也不会删除生产数据库：
 
 ```bash
 cd /opt/cipc-labequip/current
 git fetch --tags origin
-git show v1.4.7:scripts/upgrade-lan-from-v1.3.sh > /tmp/upgrade-lan-from-v1.3.sh
-sudo bash /tmp/upgrade-lan-from-v1.3.sh v1.4.7
+git show v1.4.8:scripts/upgrade-lan-from-v1.3.sh > /tmp/upgrade-lan-from-v1.3.sh
+sudo bash /tmp/upgrade-lan-from-v1.3.sh v1.4.8
 ```
 
 升级完成后，开发者进入“成员与权限 → 系统升级”即可进行后续版本升级。升级失败时脚本会尝试恢复升级前的代码提交；数据库快照位于 `/var/lib/cipc-labequip/backups`。
+
+## v1.4.8 手动升级版本显示修复
+
+v1.4.8 修复系统升级页面在尚未检查更新时把手动命令错误回退到旧版本的问题。现在必须先点击“检查更新”，页面只会为确实可升级的稳定版本生成命令；已经是最新版本时不会提供误导性的可执行命令。
 
 ## v1.4.7 超时恢复与绑定校验
 

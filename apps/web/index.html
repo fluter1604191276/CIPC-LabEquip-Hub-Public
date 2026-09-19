@@ -275,11 +275,7 @@
             <section class="page-heading"><div><p class="kicker">RELEASE MANAGEMENT</p><h1>系统升级 <span>✦</span></h1><p class="subtitle">仅开发者可用。先检查稳定版，再由服务器执行备份、测试、切换与验证。</p></div><button class="secondary-button" id="update-check" type="button">检查更新</button></section>
             <section class="update-grid"><article class="panel update-summary-card"><p class="kicker">VERSION STATUS</p><h2 id="update-current-version">当前版本：—</h2><strong id="update-latest-version">尚未检查版本</strong><p id="update-summary">点击“检查更新”获取版本信息。</p><div class="update-actions"><button class="primary-button" id="update-apply" type="button" disabled>备份并升级</button></div></article><article class="panel update-task-card"><div class="panel-heading"><div><h2>升级任务</h2><p id="update-status">暂无升级任务</p></div></div><ol class="update-steps"><li>检查版本与兼容性</li><li>创建数据库快照</li><li>运行测试并切换代码</li><li>检查 API、网页和数据完整性</li></ol></article></section>
             <article class="panel update-notes-card"><div class="panel-heading"><div><h2>版本说明</h2><p>正式版本才会出现在这里，开发分支不会自动部署。</p></div></div><pre id="update-release-notes">暂无更新说明</pre></article>
-            <article class="panel update-manual-card"><div class="panel-heading"><div><h2>手动升级</h2><p>自动升级服务不可用或需要人工维护时，管理员可在 Ubuntu 服务器执行下面的命令。</p></div><button class="text-button" id="update-manual-copy" type="button">复制命令</button></div><pre id="update-manual-command">VERSION=v1.4.2
-cd /opt/cipc-labequip/current
-git fetch --tags origin
-git show "$VERSION":scripts/upgrade-lan-from-v1.3.sh &gt; /tmp/upgrade-lan-from-v1.3.sh
-sudo bash /tmp/upgrade-lan-from-v1.3.sh "$VERSION"</pre><div class="form-note"><span>i</span><span>手动升级仍会先备份数据库并运行测试；不要直接覆盖 /var/lib/cipc-labequip/data。</span></div></article>
+            <article class="panel update-manual-card"><div class="panel-heading"><div><h2>手动升级</h2><p>自动升级服务不可用或需要人工维护时，管理员可在 Ubuntu 服务器执行下面的命令。</p></div><button class="text-button" id="update-manual-copy" type="button">复制命令</button></div><pre id="update-manual-command">请先点击“检查更新”，获取目标版本后再复制手动升级命令。</pre><div class="form-note"><span>i</span><span>手动升级仍会先备份数据库并运行测试；不要直接覆盖 /var/lib/cipc-labequip/data。</span></div></article>
           </section>
 
           <section class="workspace-view" id="audit-view">

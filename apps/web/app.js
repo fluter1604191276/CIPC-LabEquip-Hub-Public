@@ -924,12 +924,22 @@ function renderUpdateCenter() {
   button.textContent = updateStatus?.state === "running" ? "升级执行中…" : updateStatus?.state === "queued" ? "升级任务已排队" : "备份并升级";
   status.textContent = updateStatus?.message || "暂无升级任务";
   document.querySelector("#update-release-notes").textContent = updateInfo?.releaseNotes || "暂无更新说明";
-  const manualVersion = updateInfo?.latestVersion || "1.4.1";
-  document.querySelector("#update-manual-command").textContent = `VERSION=v${manualVersion}
+  const manualCommand = document.querySelector("#update-manual-command");
+  const manualCopy = document.querySelector("#update-manual-copy");
+  const manualVersion = updateInfo?.updateAvailable ? updateInfo.latestVersion : null;
+  if (manualVersion) {
+    manualCommand.textContent = `VERSION=v${manualVersion}
 cd /opt/cipc-labequip/current
 git fetch --tags origin
 git show "$VERSION":scripts/upgrade-lan-from-v1.3.sh > /tmp/upgrade-lan-from-v1.3.sh
 sudo bash /tmp/upgrade-lan-from-v1.3.sh "$VERSION"`;
+    manualCopy.disabled = false;
+  } else {
+    manualCommand.textContent = updateInfo
+      ? "当前已经是最新版本，无需执行手动升级。"
+      : "请先点击“检查更新”，获取目标版本后再复制手动升级命令。";
+    manualCopy.disabled = true;
+  }
 }
 
 function stopUpdateStatusPolling() {

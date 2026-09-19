@@ -2,12 +2,12 @@
 
 实验室资源平台是实验室内部的设备台账、设备/会议室预约、维修保养、采购记录和操作审计平台。
 
-- 最新代码版本：`v1.4.7`
+- 最新代码版本：`v1.4.8`
 - 推荐部署环境：Ubuntu 22.04 / 24.04 LTS，Node.js 22，Docker Engine + Compose
 - 推荐使用方式：校内局域网部署，不开放公网 API
 - 数据存储：单机 SQLite，生产数据与代码目录分离
 
-> `v1.4.7` 在 v1.4.6 基础上补强超时任务恢复、标签与提交绑定校验、systemd flock 互斥和生产状态留痕。新部署可固定使用 `v1.4.7` 标签；已部署的学校环境需按文档安装升级代理后自主升级。版本差异见 [版本矩阵](docs/VERSION_MATRIX.md)。
+> `v1.4.8` 修复升级中心在尚未检查更新时显示过期手动升级版本的问题，并保持 v1.4.7 的升级稳定性增强。新部署可固定使用 `v1.4.8` 标签；已部署的学校环境需按文档升级。版本差异见 [版本矩阵](docs/VERSION_MATRIX.md)。
 
 ## 系统结构
 
@@ -103,7 +103,7 @@ sudo usermod -aG docker "$USER"
 ```bash
 sudo install -d -m 0755 -o "$USER" -g "$USER" /opt/cipc-labequip
 
-git clone --branch v1.4.7 --depth 1 \
+git clone --branch v1.4.8 --depth 1 \
   https://github.com/fluter1604191276/CIPC-LabEquip-Hub-Public.git \
   /opt/cipc-labequip/current
 
@@ -339,7 +339,7 @@ curl -v http://127.0.0.1:4000/api/health
 
 从 v1.4.0 起，学校部署可以安装一次 `cipc-labequip-upgrade.path`。开发者在“系统升级”页面检查正式稳定版后，服务器会自动完成数据库备份、下载、测试、切换和健康检查。升级代理由 systemd 独立运行，网页不会直接执行服务器命令。
 
-已经部署 v1.3.0 及之后版本的学校，可直接执行 [快速升级命令](docs/RELEASE_AND_MIGRATION.md#upgrade-v1-4-7)。安装命令和回滚说明见 [发布、迁移与部署流程](docs/RELEASE_AND_MIGRATION.md) 以及 [局域网部署说明](deploy/lan/README.md)。数据库回滚仍需管理员按备份恢复流程显式执行。
+已经部署 v1.3.0 及之后版本的学校，可直接执行 [快速升级命令](docs/RELEASE_AND_MIGRATION.md#upgrade-v1-4-8)。安装命令和回滚说明见 [发布、迁移与部署流程](docs/RELEASE_AND_MIGRATION.md) 以及 [局域网部署说明](deploy/lan/README.md)。数据库回滚仍需管理员按备份恢复流程显式执行。
 
 ## 本地开发
 
@@ -359,6 +359,7 @@ pnpm check
 
 ## 版本与文档
 
+- [v1.4.8 发布说明](docs/RELEASE_NOTES_v1.4.8.md)
 - [v1.4.7 发布说明](docs/RELEASE_NOTES_v1.4.7.md)
 - [v1.4.6 发布说明](docs/RELEASE_NOTES_v1.4.6.md)
 - [v1.4.5 发布说明](docs/RELEASE_NOTES_v1.4.5.md)

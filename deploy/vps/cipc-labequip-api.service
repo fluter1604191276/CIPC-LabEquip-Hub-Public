@@ -16,7 +16,7 @@ Environment=TRUST_PROXY=true
 Environment=COOKIE_SECURE=true
 Environment=BACKUP_DIR=/var/lib/cipc-labequip/backups
 Environment=BACKUP_RETENTION=14
-Environment=APP_VERSION=1.4.7
+Environment=APP_VERSION=1.4.8
 Environment=UPDATE_ENABLED=true
 Environment=UPDATE_REPOSITORY=fluter1604191276/CIPC-LabEquip-Hub-Public
 Environment=UPDATE_REQUEST_FILE=/var/lib/cipc-labequip/data/upgrade/request.json

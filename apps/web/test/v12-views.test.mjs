@@ -138,6 +138,16 @@ test("help guide is detailed and the update center exposes manual upgrade instru
   assert.match(app, /navigator\.clipboard\.writeText\(command\)/);
 });
 
+test("manual upgrade instructions never fall back to a stale hard-coded release", () => {
+  assert.match(html, /请先点击“检查更新”，获取目标版本后再复制手动升级命令/);
+  assert.doesNotMatch(html, /VERSION=v1\.4\.1/);
+  assert.doesNotMatch(html, /VERSION=v1\.4\.2/);
+  assert.doesNotMatch(app, /updateInfo\?\.latestVersion \|\| ["']1\.4\.1["']/);
+  assert.match(app, /const manualVersion = updateInfo\?\.updateAvailable \? updateInfo\.latestVersion : null;/);
+  assert.match(app, /当前已经是最新版本，无需执行手动升级/);
+  assert.match(app, /manualCopy\.disabled = true/);
+});
+
 
 test("upgrade channel follows the selected developer simulation view", () => {
   assert.match(app, /button\.hidden = !definition\.views\.includes\(button\.dataset\.view\)/);
