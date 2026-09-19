@@ -1,6 +1,6 @@
 {
   "name": "cipc-labequip-hub",
-  "version": "1.4.11",
+  "version": "1.4.12",
   "private": true,
   "description": "Laboratory Equipment Sharing & Reservation Platform",
   "packageManager": "pnpm@11.9.0",

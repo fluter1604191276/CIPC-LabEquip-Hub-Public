@@ -161,8 +161,8 @@ test("manual upgrade instructions never fall back to a stale hard-coded release"
 });
 
 test("release assets use a fresh cache-busting version", () => {
-  assert.match(html, /styles\.css\?v=1\.4\.11/);
-  assert.match(html, /app\.js\?v=1\.4\.11/);
+  assert.match(html, /styles\.css\?v=1\.4\.12/);
+  assert.match(html, /app\.js\?v=1\.4\.12/);
 });
 
 

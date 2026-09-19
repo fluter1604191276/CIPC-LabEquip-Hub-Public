@@ -11,9 +11,9 @@ function model() { const context = {}; vm.runInNewContext(script, context); retu
 
 test('tutorial catalog follows the selected role and unknown roles default to member', () => {
   const m = model();
-  assert.equal(m.lessonsForRole('member').length, 6);
-  assert.equal(m.lessonsForRole('admin').length, 8);
-  assert.equal(m.lessonsForRole('developer').length, 9);
+  assert.equal(m.lessonsForRole('member').length, 7);
+  assert.equal(m.lessonsForRole('admin').length, 9);
+  assert.equal(m.lessonsForRole('developer').length, 10);
   assert.deepEqual([...m.lessonsForRole('unknown').map(l => l.id)], [...m.lessonsForRole('member').map(l => l.id)]);
   for (const role of ['member', 'admin']) {
     const s = m.createState(role);
@@ -203,4 +203,22 @@ test('both classroom iframe levels allow Safari host listeners while child scrip
   assert.match(script, /script-src 'none'; connect-src 'none'; form-action 'none'/);
   assert.match(script, /parsed\.querySelectorAll\('script,link,base,meta\[http-equiv\]'/);
   assert.match(app, /Tutorial mode requires an in-memory request adapter/);
+});
+
+test('equipment creation lesson uses the real form and validates asset identifiers', () => {
+  const m = model();
+  const lesson = m.lessons.find(item => item.id === 'equipment-create');
+  assert.ok(lesson); assert.deepEqual(Array.from(lesson.roles), ['member', 'admin', 'developer']);
+  const state = m.createState('member'); assert.equal(m.start(state, 'equipment-create').ok, true);
+  while (m.currentStep(state).action !== 'submit:equipment') m.advance(state, m.currentStep(state).action, m.demoValues(state));
+  const valid = m.demoValues(state);
+  assert.equal(m.advance(state, 'submit:equipment', { ...valid, code: 'x'.repeat(81) }).ok, false);
+  for (const patch of [{code:' '},{status:'reserved'},{lab:'demo-lab'},{metric:'x'.repeat(501)}]) {
+    assert.equal(m.advance(state, 'submit:equipment', {...valid,...patch}).ok, false);
+  }
+  // Production asset codes are text, not a restricted letters-and-digits pattern.
+  assert.equal(m.advance(state, 'submit:equipment', {...valid,code:'资产 4/A',metric:'x'.repeat(500)}).ok, true);
+  assert.equal(m.currentStep(state).action, 'verify:equipment');
+  assert.match(script, /#open-equipment-form/);
+  assert.match(script, /#equipment-form/);
 });

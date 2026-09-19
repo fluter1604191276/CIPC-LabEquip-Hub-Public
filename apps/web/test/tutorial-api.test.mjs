@@ -61,6 +61,17 @@ test('tutorial requests and snapshots are isolated from each other and caller mu
   await assert.rejects(a.request('/users'), { status: 403 });
 });
 
+test('tutorial equipment creation uses the production payload and remains virtual', async () => {
+  const api = create({ role:'member', lessonId:'equipment-create', values:{ 'submit:equipment': { name:'光谱分析仪（演示）', code:'DEMO-004', metric:'400–1100 nm / 高精度', lab:'光电实验室', location:'光电实验室', owner:'演示老师', status:'available' } } });
+  const equipment = await api.request('/equipment');
+  const item = equipment.find(entry => entry.id === 'practice-equipment');
+  assert.equal(item.name, '光谱分析仪（演示）');
+  assert.equal(item.code, 'DEMO-004');
+  assert.equal(item.lab, '光电实验室');
+  assert.equal(item.status, 'available');
+  await assert.rejects(post(api, '/equipment', { name:'重复设备', code:'DEMO-004', metric:'x', lab:'光电实验室', owner:'演示老师', status:'available' }), { status:409 });
+});
+
 test('tutorial reservations check schedule, resources, capacity and ownership', async () => {
   const api = create();
   const record = await post(api, '/reservations', booking());
@@ -148,7 +159,7 @@ test('tutorial upgrade is developer-only and changes virtual status with no exte
   assert.equal(check.latestVersion, '0.0.2');
   assert.equal(check.updateAvailable, true);
   assert.match(check.releaseNotes, /虚拟版本演练/);
-  await assert.rejects(post(api, '/update', { version: '1.4.11' }));
+  await assert.rejects(post(api, '/update', { version: '1.4.12' }));
   assert.equal((await post(api, '/update', { version: '0.0.2' })).state, 'completed');
   assert.equal((await api.request('/update/status')).currentVersion, '0.0.2');
   assert.equal((await api.request('/update/check')).updateAvailable, false);
@@ -208,4 +219,47 @@ test('tutorial laboratory edit replay retains every visible editable field', asy
   const edited = labs.find(lab=>lab.id==='practice-lab');
   assert.equal(edited.name,'综合空间'); assert.equal(edited.code,'LAB-Y');
   assert.equal(edited.alias,'综合'); assert.equal(edited.sortOrder,7);
+});
+
+test('equipment creation validates all fields atomically and uses active lab associations', async () => {
+  const api = create({ role:'admin' });
+  const input = { name:'演示仪器',code:'demo-004',metric:'教学测量',lab:'光电实验室',owner:'演示老师',status:'available' };
+  const initial = JSON.stringify(api.snapshot());
+  for (const patch of [
+    {name:' '},{code:''},{metric:''},{owner:''},{lab:'demo-lab'},{lab:'未知实验室'},
+    {status:'reserved'},{name:'x'.repeat(201)},{code:'x'.repeat(81)},
+    {metric:'x'.repeat(501)},{owner:'x'.repeat(201)},{code:'demo-001'}
+  ]) {
+    await assert.rejects(post(api, '/equipment', {...input,...patch}));
+    assert.equal(JSON.stringify(api.snapshot()), initial, JSON.stringify(patch));
+  }
+  const addedLab = await post(api, '/laboratories', lab());
+  const record = await post(api, '/equipment', {...input,lab:addedLab.name});
+  assert.equal(record.laboratoryId, addedLab.id);
+  assert.equal(record.code, 'DEMO-004');
+  assert.equal(record.location, addedLab.name);
+  await patch(api, '/laboratories/'+addedLab.id, {...lab(),active:false});
+  const before = JSON.stringify(api.snapshot());
+  await assert.rejects(post(api, '/equipment', {...input,lab:addedLab.name,code:'DEMO-005'}));
+  assert.equal(JSON.stringify(api.snapshot()), before);
+});
+
+test('every business role can create equipment in all four statuses and replay does not duplicate it', async () => {
+  for (const role of ['member','admin','developer']) {
+    for (const status of ['available','maintenance','disabled','retired']) {
+      const values = {name:'自定义演示仪器',code:'demo-004',metric:'自定义指标',lab:'光电实验室',owner:'演示保管人',status};
+      const api = create({role});
+      const saved = await post(api,'/equipment',values);
+      assert.equal((await api.request('/equipment')).length,4);
+      assert.equal(saved.status,status);
+      const replay = create({role,values:{'submit:equipment':values}});
+      const row = (await replay.request('/equipment')).find(item=>item.id==='practice-equipment');
+      for (const field of ['name','metric','lab','owner','status']) assert.equal(row[field],values[field]);
+      assert.equal(row.code,'DEMO-004');
+      assert.equal((await replay.request('/equipment')).length,4);
+      row.name='caller mutation';
+      assert.equal(replay.snapshot().equipment.find(item=>item.id==='practice-equipment').name,values.name);
+      assert.equal((await create({role}).request('/equipment')).length,3);
+    }
+  }
 });

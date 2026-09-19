@@ -23,6 +23,12 @@
       step("nav:mine", "到我的预约核对", "预约已在演示中生效。点击“我的预约”核对刚填写的信息。", "booked"),
       step("verify:booking", "确认预约结果", "检查卡片上的日期、时间和用途，然后点击“信息正确，完成练习”。", "mine", { cta: "信息正确，完成练习" })
     ], ["从台账搜索设备并查看详情。", "预约提交后立即生效；在我的预约核对时间与用途。"]),
+    lesson("equipment-create", "新增设备", "从设备台账新增一台设备，熟悉资产编号、性能指标、实验室和初始状态。", all, [
+      step("nav:equipment", "打开设备台账", "点击左侧“设备台账”，正式系统的新增设备入口位于页面右上角。", "overview"),
+      step("new:equipment", "打开新增设备表单", "点击“新增设备”，打开与正式系统一致的设备录入表单。", "equipment-new", { cta: "新增设备" }),
+      step("submit:equipment", "填写设备信息", "展开教学提示中的“填写示例”，填写设备名称、资产编号、性能指标、实验室、保管人和初始状态。", "equipment-form", { fields: [field("name", "设备名称", "光谱分析仪（演示）"), field("code", "资产编号", "DEMO-004"), field("metric", "性能指标", "400–1100 nm / 高精度"), field("lab", "所在实验室", "光电实验室", "select", [["光电实验室", "光电实验室"]]), field("owner", "设备保管人", "演示老师"), field("status", "初始状态", "available", "select", [["available", "可用"], ["maintenance", "维修中"], ["disabled", "已停用"], ["retired", "已报废"]])], cta: "保存设备", validate: "equipment" }),
+      step("verify:equipment", "核对新增设备", "确认设备已经出现在台账，资产编号、实验室和状态正确。点击“完成练习”。", "equipment-saved", { cta: "完成练习" })
+    ], ["资产编号需要唯一；新增后设备会立即进入台账。", "设备状态和预约占用是两件事，维修中设备不会接受新预约。"]),
     lesson("cancel", "取消本人的预约", "练习取消尚未开始的预约，认识取消后的状态。", all, [
       step("nav:mine", "打开我的预约", "点击“我的预约”。这次使用一条已准备好的本人演示预约。", "overview"),
       step("cancel:booking", "选择要取消的预约", "核对预约是本人创建且尚未开始，然后点击“取消预约”。", "mine", { cta: "取消预约" }),
@@ -91,7 +97,8 @@
       if (f.type === "select" && !f.options.some(([id]) => id === value)) return `请选择有效的“${f.label}”。`;
       if (f.type === "date" && !validDate(value)) return "请选择有效日期。";
       if (f.type === "time" && !/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) return "请使用有效的小时和分钟。";
-      if (value.length > 200) return `“${f.label}”请控制在 200 字以内。`;
+      const maxLength = item.validate === "equipment" ? ({ code: 80, metric: 500 }[f.name] || 200) : 200;
+      if (value.length > maxLength) return `“${f.label}”请控制在 ${maxLength} 字以内。`;
     }
     switch (item.validate) {
       case "search": return String(values.query).trim().includes("示波器") && "数字示波器".includes(String(values.query).trim()) ? "" : "本课请搜索“示波器”，再查看这台示例设备。";
@@ -140,6 +147,7 @@
     'nav:equipment': '.nav-item[data-view="equipment"]', 'nav:calendar': '.nav-item[data-view="calendar"]',
     'nav:mine': '.nav-item[data-view="my-reservations"]', 'nav:rooms': '.nav-item[data-view="meeting-rooms"]',
     'nav:maintenance': '.nav-item[data-view="maintenance"]', 'nav:records': '.nav-item[data-view="records"]',
+    'new:equipment': '#open-equipment-form', 'submit:equipment': '#equipment-form',
     'nav:members': '.nav-item[data-view="members"]', 'nav:update': '.nav-item[data-view="update"]',
     'search:equipment': '#directory-search', 'open:equipment': '#equipment-directory [data-equipment-id="scope"] .directory-row-action',
     'reserve:equipment': '#reserve-from-drawer', 'submit:booking': '#reservation-form', 'submit:room': '#reservation-form',
@@ -153,11 +161,12 @@
     'edit:lab': '.edit-laboratory-action[data-laboratory-id="practice-lab"]', 'submit:lab-edit': '#laboratory-form',
     'check:update': '#update-check', 'apply:update': '#update-apply', 'read:update': '#update-release-notes',
     'inspect:mine': '#my-reservations-list', 'verify:booking': '#my-reservations-list', 'verify:room': '#my-reservations-list',
-    'verify:cancel': '#my-reservations-list', 'verify:maintenance': '#maintenance-list',
+    'verify:cancel': '#my-reservations-list', 'verify:equipment': '#equipment-directory [data-equipment-id="practice-equipment"]', 'verify:maintenance': '#maintenance-list',
     'verify:procurement': '#procurement-list', 'verify:member': '#members-list', 'verify:lab': '#laboratory-list', 'verify:update': '#update-status'
   };
   const fieldControls = {
     'search:equipment': { query:'directory-search' },
+    'submit:equipment': { name:'new-equipment-name',code:'new-equipment-code',metric:'new-equipment-metric',lab:'new-equipment-lab',owner:'new-equipment-owner',status:'new-equipment-status' },
     'submit:booking': { date:'reservation-date',start:'reservation-start',end:'reservation-end',people:'reservation-people',purpose:'reservation-purpose' },
     'submit:room': { date:'reservation-date',start:'reservation-start',end:'reservation-end',people:'reservation-people',purpose:'reservation-purpose' },
     'submit:maintenance': { equipment:'maintenance-equipment',type:'maintenance-type',status:'maintenance-status',date:'maintenance-date',cost:'maintenance-cost',notes:'maintenance-description' },
@@ -250,7 +259,7 @@
       const rect=target.getBoundingClientRect();
       root.querySelector('#practice-coach')?.classList.toggle('coach-left',rect.left+rect.width/2 > doc.defaultView.innerWidth*.5);
     }
-    const routes = {overview:'overview',equipment:'equipment',search:'equipment',detail:'equipment',booking:'equipment',booked:'equipment',calendar:'calendar',mine:'my-reservations',cancelled:'my-reservations',rooms:'meeting-rooms','room-form':'meeting-rooms','room-booked':'meeting-rooms',maintenance:'maintenance','maintenance-form':'maintenance','maintenance-saved':'maintenance',records:'records','procurement-form':'records','procurement-saved':'records','procurement-accepted':'records',members:'members','member-form':'members','member-saved':'members',laboratories:'members','lab-form':'members','lab-edit':'members','lab-saved':'members','lab-updated':'members',upgrade:'update',release:'update','upgrade-ready':'update','upgrade-done':'update'};
+    const routes = {overview:'overview', 'equipment-new':'equipment', 'equipment-form':'equipment', 'equipment-saved':'equipment',equipment:'equipment',search:'equipment',detail:'equipment',booking:'equipment',booked:'equipment',calendar:'calendar',mine:'my-reservations',cancelled:'my-reservations',rooms:'meeting-rooms','room-form':'meeting-rooms','room-booked':'meeting-rooms',maintenance:'maintenance','maintenance-form':'maintenance','maintenance-saved':'maintenance',records:'records','procurement-form':'records','procurement-saved':'records','procurement-accepted':'records',members:'members','member-form':'members','member-saved':'members',laboratories:'members','lab-form':'members','lab-edit':'members','lab-saved':'members','lab-updated':'members',upgrade:'update',release:'update','upgrade-ready':'update','upgrade-done':'update'};
     async function prepare(doc,item) {
       doc.querySelector(`.nav-item[data-view="${routes[item.view]}"]`).click();
       if(['equipment','detail','booking'].includes(item.view) && state.values['search:equipment']) {
@@ -263,7 +272,7 @@
         if(item.view==='booking') doc.querySelector('#reserve-from-drawer').click();
       }
       if(item.view==='room-form') doc.querySelector(controls['reserve:room']).click();
-      const openForms={'maintenance-form':'#open-maintenance-form','procurement-form':'#open-procurement-form','member-form':'#open-member-form','lab-form':'#open-laboratory-form','lab-edit':controls['edit:lab']};
+      const openForms={'maintenance-form':'#open-maintenance-form','procurement-form':'#open-procurement-form','member-form':'#open-member-form','equipment-form':'#open-equipment-form','lab-form':'#open-laboratory-form','lab-edit':controls['edit:lab']};
       if(openForms[item.view]) doc.querySelector(openForms[item.view]).click();
       if(['release','upgrade-ready'].includes(item.view)) {
         doc.querySelector('#update-check').click();

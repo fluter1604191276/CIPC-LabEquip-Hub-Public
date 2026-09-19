@@ -71,6 +71,20 @@
       };
       collection.push(record); return record;
     }
+    function addEquipment(input) {
+      const name = text(input.name, "设备名称", 200);
+      const code = text(input.code, "资产编号", 80).toUpperCase();
+      const metric = text(input.metric, "性能指标", 500);
+      const lab = text(input.lab, "所在实验室", 200);
+      const laboratory = data.laboratories.find(item => item.name === lab && item.active);
+      if (!laboratory) fail("请选择已启用的演示实验室");
+      const owner = text(input.owner, "设备保管人", 200);
+      const status = choice(input.status || "available", ["available", "maintenance", "disabled", "retired"], "初始状态");
+      if (data.equipment.some(item => item.code.toUpperCase() === code)) fail("演示资产编号已存在", 409);
+      const result = { id: nextId(data.equipment, "practice-equipment"), name, code, metric, lab, laboratoryId: laboratory.id, location: text(input.location || lab, "所在实验室", 200), owner, status, icon: "◇", thumb: "thumb-orange", createdAt: now, updatedAt: now };
+      data.equipment.push(result);
+      return result;
+    }
     function addRecord(input, procurement) {
       const resource = find(data.equipment, input.equipmentId);
       const record = {
@@ -150,6 +164,7 @@
         }
       }
       if (method === "POST") {
+        if (route === "/equipment") return addEquipment(input);
         if (route === "/reservations" || route === "/room-reservations") return addReservation(input, route === "/room-reservations");
         if (route === "/maintenance-records" || route === "/procurement-records") return addRecord(input, route === "/procurement-records");
         if (route === "/laboratories") return saveLaboratory(input);
@@ -184,6 +199,7 @@
       fail("该操作不在当前虚拟教程开放范围内", 404, "TUTORIAL_ROUTE_DISABLED");
     }
     // Rebuild only completed lesson actions; Back/restart therefore restores earlier virtual state.
+    if (values["submit:equipment"]) addEquipment(values["submit:equipment"]);
     if (values["submit:booking"]) addReservation({ ...values["submit:booking"], equipmentId: "scope" }, false);
     if (values["submit:room"]) addReservation({ ...values["submit:room"], meetingRoomId: "room-a" }, true);
     if (values["submit:maintenance"]) { const v = values["submit:maintenance"]; addRecord({ ...v, equipmentId: v.equipment, description: v.notes }, false); }
