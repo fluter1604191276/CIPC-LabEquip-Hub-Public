@@ -148,7 +148,7 @@ test('tutorial upgrade is developer-only and changes virtual status with no exte
   assert.equal(check.latestVersion, '0.0.2');
   assert.equal(check.updateAvailable, true);
   assert.match(check.releaseNotes, /虚拟版本演练/);
-  await assert.rejects(post(api, '/update', { version: '1.4.10' }));
+  await assert.rejects(post(api, '/update', { version: '1.4.11' }));
   assert.equal((await post(api, '/update', { version: '0.0.2' })).state, 'completed');
   assert.equal((await api.request('/update/status')).currentVersion, '0.0.2');
   assert.equal((await api.request('/update/check')).updateAvailable, false);
