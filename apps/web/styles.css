@@ -4399,6 +4399,57 @@ button:disabled {
 }
 @media (max-width: 560px) { .meeting-room-grid { grid-template-columns: 1fr; } .meeting-room-card { min-height: 218px; } .upcoming-item { align-items: flex-start; flex-wrap: wrap; } .upcoming-item .cancel-reservation { margin-left: 53px; } }
 
+@keyframes update-check-spin { to { transform: rotate(360deg); } }
+.update-check-button {
+  min-width: 170px;
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  padding: 8px 16px 8px 9px;
+  border: 1px solid #a94327;
+  border-radius: 11px;
+  color: #fff;
+  background: linear-gradient(135deg, #c85835, var(--orange-action));
+  box-shadow: 0 10px 24px rgba(191, 81, 47, 0.24);
+  text-align: left;
+  transition: transform .16s ease, box-shadow .16s ease, background .16s ease;
+}
+.update-check-button:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--orange-action), var(--orange-action-hover));
+  box-shadow: 0 13px 28px rgba(169, 67, 39, 0.3);
+  transform: translateY(-2px);
+}
+.update-check-button:active:not(:disabled) { transform: translateY(0); }
+.update-check-button:disabled { cursor: wait; opacity: .76; }
+.update-check-icon {
+  width: 34px;
+  height: 34px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  color: var(--orange-action);
+  background: #fff;
+  box-shadow: 0 4px 10px rgba(84, 30, 15, .18);
+}
+.update-check-icon svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.update-check-copy { display: grid; gap: 2px; }
+.update-check-copy strong { font-size: 12px; line-height: 1.2; }
+.update-check-copy small { color: rgba(255,255,255,.8); font-size: 8px; font-weight: 600; letter-spacing: .02em; }
+.update-check-button.is-checking .update-check-icon svg { animation: update-check-spin .8s linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .update-check-button { transition: none; }
+  .update-check-button.is-checking .update-check-icon svg { animation: none; }
+}
+
 .update-grid { display:grid; grid-template-columns: minmax(0,1fr) minmax(280px,.8fr); gap:18px; margin-bottom:18px; }
 .update-summary-card, .update-task-card, .update-notes-card { padding:24px; }
 .update-summary-card h2 { margin:10px 0 8px; font-size:22px; }
@@ -4407,7 +4458,7 @@ button:disabled {
 .update-actions { margin-top:22px; }
 .update-steps { margin:10px 0 0; padding-left:22px; color:#697483; line-height:2; }
 .update-notes-card pre { white-space:pre-wrap; color:#697483; font:inherit; line-height:1.7; min-height:120px; }
-@media (max-width:760px) { .update-grid { grid-template-columns:1fr; } .update-summary-card, .update-task-card, .update-notes-card { padding:18px; } }
+@media (max-width:760px) { .update-check-button { width:100%; justify-content:center; } .update-grid { grid-template-columns:1fr; } .update-summary-card, .update-task-card, .update-notes-card { padding:18px; } }
 
 .update-manual-card { padding:24px; margin-top:18px; }
 .update-manual-card pre { white-space:pre-wrap; overflow:auto; padding:14px; border-radius:8px; background:#1f2937; color:#f3f4f6; font:12px/1.7 ui-monospace, SFMono-Regular, Menlo, monospace; }

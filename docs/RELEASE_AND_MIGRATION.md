@@ -253,20 +253,24 @@ git diff --check
 - 生产数据库、备份、临时密码和私钥没有进入 Git 历史；
 - 发布标签对应的提交已经推送，并且老师能从标签复现部署。
 
-<a id="upgrade-v1-4-9"></a>
+<a id="upgrade-v1-4-10"></a>
 
-## v1.3.0/v1.3.1/v1.4.0/v1.4.1/v1.4.2/v1.4.3/v1.4.4/v1.4.6/v1.4.7/v1.4.8 快速升级到 v1.4.9
+## v1.3.0 至 v1.4.9 快速升级到 v1.4.10
 
-如果学校已经按旧版部署，最简单的方式是在服务器执行下面的命令。它会自动备份数据库、获取 v1.4.9、运行测试、更新 API 单元、安装升级中心并重建 Web；不会覆盖 `/opt/cipc-labequip/nginx.conf`，也不会删除生产数据库：
+如果学校已经按旧版部署，最简单的方式是在服务器执行下面的命令。它会自动备份数据库、获取 v1.4.10、运行测试、更新 API 单元、安装升级中心并重建 Web；不会覆盖 `/opt/cipc-labequip/nginx.conf`，也不会删除生产数据库：
 
 ```bash
 cd /opt/cipc-labequip/current
 git fetch --tags origin
-git show v1.4.9:scripts/upgrade-lan-from-v1.3.sh > /tmp/upgrade-lan-from-v1.3.sh
-sudo bash /tmp/upgrade-lan-from-v1.3.sh v1.4.9
+git show v1.4.10:scripts/upgrade-lan-from-v1.3.sh > /tmp/upgrade-lan-from-v1.3.sh
+sudo bash /tmp/upgrade-lan-from-v1.3.sh v1.4.10
 ```
 
 升级完成后，开发者进入“成员与权限 → 系统升级”即可进行后续版本升级。升级失败时脚本会尝试恢复升级前的代码提交；数据库快照位于 `/var/lib/cipc-labequip/backups`。
+
+## v1.4.10 检查更新入口优化
+
+v1.4.10 将“检查更新”从普通灰色按钮升级为带同步图标和辅助说明的主操作按钮。请求期间按钮显示“正在检查…”、旋转状态和 `aria-busy`，移动端改为通栏显示。公网生产保持 v1.4.9，便于直接从页面测试“备份并升级”到本版。
 
 ## v1.4.9 前端缓存版本修复
 

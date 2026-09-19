@@ -484,7 +484,7 @@ export function startServer({
   const service = createService(database);
   const updateManager = process.env.UPDATE_ENABLED === "true" ? createUpdateManager({
     repository: process.env.UPDATE_REPOSITORY,
-    currentVersion: resolveAppVersion(process.env.APP_VERSION || "1.4.7"),
+    currentVersion: resolveAppVersion(process.env.APP_VERSION || "1.4.10"),
     requestFile: process.env.UPDATE_REQUEST_FILE || "/var/lib/cipc-labequip/data/upgrade/request.json",
     statusFile: process.env.UPDATE_STATUS_FILE || "/var/lib/cipc-labequip/data/upgrade/status.json"
   }) : null;

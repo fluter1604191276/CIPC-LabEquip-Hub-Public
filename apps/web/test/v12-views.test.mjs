@@ -119,6 +119,18 @@ test("developer-only update center has check and apply controls", () => {
   assert.match(app, /update: "系统升级"/);
 });
 
+test("update check is a prominent accessible action with progress feedback", () => {
+  assert.match(html, /class="update-check-button" id="update-check"/);
+  assert.match(html, /class="update-check-icon"[^>]+aria-hidden="true"/);
+  assert.match(html, /class="update-check-label" aria-live="polite">检查更新/);
+  assert.match(html, /获取最新稳定版/);
+  assert.match(app, /button\.setAttribute\("aria-busy", "true"\)/);
+  assert.match(app, /label\.textContent = "正在检查…"/);
+  assert.match(app, /button\.classList\.remove\("is-checking"\)/);
+  assert.match(css, /\.update-check-button\s*\{/);
+  assert.match(css, /\.update-check-button\.is-checking \.update-check-icon svg/);
+});
+
 
 test("update center polls queued tasks and stops after completion", () => {
   assert.match(app, /let updateStatusTimer = null;/);
@@ -149,8 +161,8 @@ test("manual upgrade instructions never fall back to a stale hard-coded release"
 });
 
 test("release assets use a fresh cache-busting version", () => {
-  assert.match(html, /styles\.css\?v=1\.4\.9/);
-  assert.match(html, /app\.js\?v=1\.4\.9/);
+  assert.match(html, /styles\.css\?v=1\.4\.10/);
+  assert.match(html, /app\.js\?v=1\.4\.10/);
 });
 
 

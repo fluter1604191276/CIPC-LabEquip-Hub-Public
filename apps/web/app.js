@@ -2289,10 +2289,20 @@ guideModal.addEventListener("click", (event) => {
 });
 
 document.querySelector("#update-check").addEventListener("click", async () => {
-  const button = document.querySelector("#update-check"); button.disabled = true;
+  const button = document.querySelector("#update-check");
+  const label = button.querySelector(".update-check-label");
+  button.disabled = true;
+  button.classList.add("is-checking");
+  button.setAttribute("aria-busy", "true");
+  label.textContent = "正在检查…";
   try { updateInfo = await apiRequest("/update/check"); renderUpdateCenter(); showToast(updateInfo.updateAvailable ? `发现 v${updateInfo.latestVersion}` : "当前已经是最新版本"); }
   catch (error) { showToast(error.message || "检查更新失败", "error"); }
-  finally { button.disabled = false; }
+  finally {
+    button.disabled = false;
+    button.classList.remove("is-checking");
+    button.setAttribute("aria-busy", "false");
+    label.textContent = "检查更新";
+  }
 });
 document.querySelector("#update-manual-copy").addEventListener("click", async () => {
   const command = document.querySelector("#update-manual-command").textContent;
