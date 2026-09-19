@@ -4,9 +4,9 @@ const reservationStatusLabels = { approved: "未开始", in_use: "使用中", co
 const viewMap = { overview: "overview-view", equipment: "equipment-view", calendar: "calendar-view-page", "my-reservations": "my-reservations-view", "meeting-rooms": "meeting-rooms-view", maintenance: "maintenance-view", records: "records-view", members: "members-view", audit: "audit-view", update: "update-view" };
 const viewLabels = { overview: "总览", equipment: "设备台账", calendar: "预约日历", "my-reservations": "我的预约", "meeting-rooms": "会议室预约", maintenance: "维修与保养", records: "采购记录", members: "成员与权限", audit: "操作审计", update: "系统升级" };
 const roleDefinitions = {
-  developer: { label: "开发者权限", avatar: "D", views: ["overview", "calendar", "my-reservations", "meeting-rooms", "equipment", "maintenance", "records", "members", "audit", "update"], guideSections: ["start", "equipment", "reservation", "records", "access", "upgrade", "faq"] },
-  admin: { label: "系统管理员", avatar: "管", views: ["overview", "calendar", "my-reservations", "meeting-rooms", "equipment", "maintenance", "records", "members", "audit"], guideSections: ["start", "equipment", "reservation", "records", "access", "faq"] },
-  member: { label: "普通用户", avatar: "用", views: ["overview", "calendar", "my-reservations", "meeting-rooms", "equipment", "maintenance", "records"], guideSections: ["start", "equipment", "reservation", "records", "faq"] }
+  developer: { label: "开发者权限", avatar: "D", views: ["overview", "calendar", "my-reservations", "meeting-rooms", "equipment", "maintenance", "records", "members", "audit", "update"], guideSections: ["practice", "start", "equipment", "reservation", "records", "access", "upgrade", "faq"] },
+  admin: { label: "系统管理员", avatar: "管", views: ["overview", "calendar", "my-reservations", "meeting-rooms", "equipment", "maintenance", "records", "members", "audit"], guideSections: ["practice", "start", "equipment", "reservation", "records", "access", "faq"] },
+  member: { label: "普通用户", avatar: "用", views: ["overview", "calendar", "my-reservations", "meeting-rooms", "equipment", "maintenance", "records"], guideSections: ["practice", "start", "equipment", "reservation", "records", "faq"] }
 };
 const roleGuideContent = {
   developer: `<p class="guide-eyebrow">DEVELOPER VIEW</p><h3>开发者工作指南</h3><p class="guide-lead">开发者负责版本发布、升级验证、权限边界检查和高风险数据操作。日常使用建议遵循“先检查、再备份、后操作”的顺序。</p><div class="guide-status-list"><div><span class="pill-dot green"></span><strong>日常巡检</strong><p>登录后查看总览、业务提醒、系统升级状态和操作审计，确认 API 与页面数据正常。</p></div><div><span class="pill-dot orange"></span><strong>模拟视图</strong><p>左下角角色切换只改变界面展示，不会改变真实服务端权限；测试完成后切回开发者视图。</p></div><div><span class="pill-dot blue"></span><strong>升级纪律</strong><p>正式发布前必须通过测试；升级前确认备份成功，升级后检查 API、Web、数据库和定时任务。</p></div></div><ol class="guide-steps"><li><span>1</span><div><strong>检查系统状态</strong><p>查看总览数据、操作审计和系统升级页；发现网络错误时先刷新，不要连续重复提交。</p></div></li><li><span>2</span><div><strong>验证业务变更</strong><p>新增或编辑实验室、设备、会议室和成员后，检查下拉选项、列表、审计记录是否同步。</p></div></li><li><span>3</span><div><strong>执行版本升级</strong><p>在系统升级页检查稳定版，阅读版本说明后点击升级；若升级服务不可用，使用页面提供的手动命令。</p></div></li><li><span>4</span><div><strong>保留回滚证据</strong><p>记录升级版本、时间、数据库快照和上一 release 路径；数据恢复与代码回滚分开处理。</p></div></li></ol><div class="guide-note warning"><strong>高风险操作</strong><p>强制删除设备、重置密码、修改成员角色和停用实验室前，先核对对象、关联记录和备份状态。</p></div><div class="guide-actions"><button class="secondary-button guide-view-link" data-target-view="update" type="button">打开系统升级</button><button class="primary-button guide-view-link" data-target-view="audit" type="button">查看操作审计 <span>→</span></button></div>`,
@@ -59,6 +59,11 @@ const meetingRoomModal = document.querySelector("#meeting-room-modal");
 const laboratoryModal = document.querySelector("#laboratory-modal");
 const drawer = document.querySelector("#equipment-drawer");
 const guideModal = document.querySelector("#guide-modal");
+const guidePracticeFrame = document.querySelector("#guide-practice-frame");
+let guidePracticeAbort = null;
+let guidePracticeRole = null;
+let guidePracticeLoadTimer = null;
+let guidePracticeCleanup = null;
 const notificationButton = document.querySelector(".notification-button");
 const notificationPanel = document.querySelector("#notification-panel");
 const notificationDot = document.querySelector("#notification-dot");
@@ -1003,7 +1008,7 @@ function debounce(callback, delay = 180) {
 }
 
 function focusableDialogElements(container) {
-  return [...container.querySelectorAll('a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])')]
+  return [...container.querySelectorAll('a[href], button, input, select, textarea, iframe, [tabindex]:not([tabindex="-1"])')]
     .filter((element) => !element.disabled && !element.hidden && element.getAttribute("aria-hidden") !== "true" && element.offsetParent !== null);
 }
 
@@ -1237,7 +1242,7 @@ function updateRoleGuide() {
   document.querySelector("#guide-records-heading").textContent = "维修、保养与采购记录";
   document.querySelector("#guide-records-lead").textContent = "所有成员都可查询并新增维修、保养和采购记录，保存后会立即同步到业务列表。";
   const activeTab = guideTabs.find((tab) => tab.classList.contains("active") && !tab.hidden);
-  activateGuideSection(activeTab?.dataset.guideSection || "start");
+  activateGuideSection(activeTab?.dataset.guideSection || "practice");
 }
 
 function applyRoleView(role, announce = false) {
@@ -1245,6 +1250,7 @@ function applyRoleView(role, announce = false) {
   const nextRole = actualRole === "developer" && roleDefinitions[role] ? role : actualRole;
   if (!roleDefinitions[nextRole]) return;
   role = nextRole;
+  if (currentRole !== role) clearGuidePractice();
   currentRole = role;
   if (currentRole === "developer" && ["queued", "running"].includes(updateStatus?.state)) startUpdateStatusPolling();
   else stopUpdateStatusPolling();
@@ -1289,11 +1295,83 @@ function applyRoleView(role, announce = false) {
 function setGuideModal(open) {
   const wasOpen = guideModal.classList.contains("open");
   if (open && !wasOpen) {
-    activateGuideSection("start");
+    activateGuideSection("practice");
     document.querySelector(".sidebar").classList.remove("mobile-open");
   }
   const activeTab = guideTabs.find((tab) => tab.classList.contains("active"));
   setManagedDialog(guideModal, open, activeTab);
+  if (!open) clearGuidePractice();
+  else if (activeTab?.dataset.guideSection === "practice") loadGuidePractice();
+}
+
+function clearGuidePractice() {
+  window.clearTimeout(guidePracticeLoadTimer);
+  guidePracticeLoadTimer = null;
+  guidePracticeAbort?.abort();
+  guidePracticeAbort = null;
+  guidePracticeRole = null;
+  guidePracticeCleanup?.();
+  guidePracticeCleanup = null;
+  guidePracticeFrame.onload = null;
+  guidePracticeFrame.removeAttribute("srcdoc");
+  guidePracticeFrame.hidden = true;
+}
+
+async function loadGuidePractice() {
+  if (!guideModal.classList.contains("open") || !currentUser) return;
+  if (guidePracticeRole === currentRole) return;
+  clearGuidePractice();
+  const controller = new AbortController();
+  guidePracticeAbort = controller;
+  guidePracticeRole = currentRole;
+  const loading = document.querySelector("#guide-practice-loading");
+  const error = document.querySelector("#guide-practice-error");
+  loading.hidden = false;
+  error.hidden = true;
+  try {
+    // Load static teaching content only. Child CSP blocks business connections and form destinations.
+    const response = await fetch("./tutorial.html", { credentials: "omit", signal: AbortSignal.any([controller.signal, AbortSignal.timeout(10_000)]) });
+    if (!response.ok) throw new Error("Tutorial load failed");
+    const source = await response.text();
+    if (!source.includes('<body data-role="member">')) throw new Error("Invalid tutorial document");
+    if (controller.signal.aborted || guidePracticeAbort !== controller) return;
+    const role = ["member", "admin", "developer"].includes(currentRole) ? currentRole : "member";
+    // Mount from the trusted host script; child scripts and native submissions stay disabled.
+    // This also works under script-src 'self' and on LAN hosts without extra browser permissions.
+    guidePracticeFrame.onload = () => {
+      if (controller.signal.aborted || guidePracticeAbort !== controller) return;
+      if (!guidePracticeFrame.contentDocument?.querySelector("#classroom")) return;
+      try {
+        guidePracticeFrame.hidden = false;
+        guidePracticeCleanup = TutorialModel.mount(guidePracticeFrame.contentDocument, {
+          onClose: () => setGuideModal(false),
+          onHelp: () => activateGuideSection("start", true)
+        });
+        window.clearTimeout(guidePracticeLoadTimer);
+        guidePracticeLoadTimer = null;
+        loading.hidden = true;
+      } catch {
+        clearGuidePractice();
+        loading.hidden = true;
+        error.hidden = false;
+      }
+    };
+    guidePracticeLoadTimer = window.setTimeout(() => {
+      if (guidePracticeAbort !== controller) return;
+      clearGuidePractice();
+      loading.hidden = true;
+      error.hidden = false;
+    }, 10_000);
+    guidePracticeFrame.srcdoc = source
+      .replace("script-src 'self'", "script-src 'none'")
+      .replace('<script src="./tutorial.js"></script>', "")
+      .replace('<body data-role="member">', `<body data-role="${role}">`);
+  } catch {
+    if (controller.signal.aborted || guidePracticeAbort !== controller) return;
+    guidePracticeRole = null;
+    loading.hidden = true;
+    error.hidden = false;
+  }
 }
 
 function setSelfPasswordModal(open) {
@@ -1303,6 +1381,11 @@ function setSelfPasswordModal(open) {
 }
 
 function activateGuideSection(section, focusTab = false) {
+  if (!roleDefinitions[currentRole].guideSections.includes(section)) section = "practice";
+  const interactive = section === "practice";
+  guideModal.classList.toggle("interactive", interactive);
+  document.querySelector(".guide-content").classList.toggle("is-interactive", interactive);
+  if (!interactive) clearGuidePractice();
   guideTabs.forEach((tab) => {
     const active = tab.dataset.guideSection === section;
     tab.classList.toggle("active", active);
@@ -1316,6 +1399,7 @@ function activateGuideSection(section, focusTab = false) {
     panel.classList.toggle("active", active);
   });
   document.querySelector(".guide-content").scrollTop = 0;
+  if (interactive) loadGuidePractice();
 }
 
 function equipmentRowAction(id) {
@@ -1465,6 +1549,7 @@ function setAuthError(element, message = "") {
 }
 
 function showLogin(message = "") {
+  setGuideModal(false);
   stopGreetingRefresh();
   stopUpdateStatusPolling();
   currentUser = null;
@@ -2266,6 +2351,8 @@ document.addEventListener("visibilitychange", () => {
     if (currentUser.role === "developer" && currentRole === "developer" && ["queued", "running"].includes(updateStatus?.state)) refreshUpdateStatus().catch(() => {});
   }
 });
+document.querySelector("#guide-practice-retry").addEventListener("click", loadGuidePractice);
+document.querySelector("#guide-practice-text").addEventListener("click", () => activateGuideSection("start", true));
 document.querySelector("#open-user-guide").addEventListener("click", () => setGuideModal(true));
 document.querySelectorAll(".close-guide-modal").forEach((button) => button.addEventListener("click", () => setGuideModal(false)));
 guideModal.addEventListener("click", (event) => { if (event.target === guideModal) setGuideModal(false); });

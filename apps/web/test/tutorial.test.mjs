@@ -1,0 +1,172 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
+import { test } from 'node:test';
+
+const html = readFileSync(new URL('../tutorial.html', import.meta.url), 'utf8');
+const app = readFileSync(new URL('../app.js', import.meta.url), 'utf8');
+const shell = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+const script = readFileSync(new URL('../tutorial.js', import.meta.url), 'utf8');
+function model() { const context = {}; vm.runInNewContext(script, context); return context.TutorialModel; }
+
+test('tutorial catalog follows the selected role and unknown roles default to member', () => {
+  const m = model();
+  assert.equal(m.lessonsForRole('member').length, 6);
+  assert.equal(m.lessonsForRole('admin').length, 8);
+  assert.equal(m.lessonsForRole('developer').length, 9);
+  assert.deepEqual([...m.lessonsForRole('unknown').map(l => l.id)], [...m.lessonsForRole('member').map(l => l.id)]);
+  for (const role of ['member', 'admin']) {
+    const s = m.createState(role);
+    assert.equal(m.start(s, 'upgrade').ok, false);
+    assert.equal(s.lessonId, null);
+  }
+  assert.equal(m.start(m.createState('member'), 'members').ok, false);
+  assert.equal(m.start(m.createState('member'), 'laboratories').ok, false);
+  assert.equal(m.start(m.createState('developer'), 'unknown').ok, false);
+});
+
+test('all tutorials can finish through their actual validated actions in practice and demo', () => {
+  const m = model();
+  for (const mode of ['practice', 'demo']) {
+    for (const lesson of m.lessons) {
+      const s = m.createState('developer');
+      assert.equal(m.start(s, lesson.id, mode).ok, true);
+      assert.equal(s.mode, mode);
+      for (const [index, step] of lesson.steps.entries()) {
+        assert.equal(s.stepIndex, index);
+        const result = m.advance(s, step.action, m.demoValues(s));
+        assert.equal(result.ok, true, `${lesson.id}/${step.action}: ${result.message}`);
+      }
+      assert.equal(s.completed, true, lesson.id);
+      assert.equal(m.currentStep(s), null);
+      assert.equal(m.advance(s, 'extra').ok, false);
+    }
+  }
+});
+
+test('wrong actions and empty forms do not skip steps or modify virtual records', () => {
+  const m = model();
+  for (const lesson of m.lessons) {
+    const s = m.createState('developer'); m.start(s, lesson.id);
+    for (const step of lesson.steps) {
+      const before = JSON.stringify(s);
+      assert.equal(m.advance(s, 'unrelated-action').ok, false);
+      assert.equal(JSON.stringify(s), before);
+      if (step.fields) {
+        const result = m.advance(s, step.action, {});
+        assert.equal(result.ok, false);
+        assert.ok(result.message.length > 3);
+        assert.equal(JSON.stringify(s), before);
+      }
+      m.advance(s, step.action, m.demoValues(s));
+    }
+  }
+});
+
+function stateAt(m, lesson, action) {
+  const s = m.createState('developer'); m.start(s, lesson);
+  while (m.currentStep(s)?.action !== action) {
+    assert.equal(s.completed, false, `missing ${action}`);
+    assert.equal(m.advance(s, m.currentStep(s).action, m.demoValues(s)).ok, true);
+  }
+  return s;
+}
+
+test('booking validates future time, valid dates, ordering, capacity and purpose', () => {
+  const m = model();
+  for (const [lesson,action] of [['equipment','submit:booking'], ['room','submit:room']]) {
+    const s = stateAt(m, lesson, action), valid = m.demoValues(s);
+    for (const patch of [{date:'2020-01-01'}, {date:'2030-02-30'}, {start:'24:00'}, {end:'08:30'}, {people:'0'}, {people:'1.5'}, {purpose:' '}, {people:'Infinity'}]) {
+      assert.equal(m.advance(s, action, {...valid,...patch}).ok, false, JSON.stringify(patch));
+    }
+    if (lesson === 'room') assert.equal(m.advance(s, action, {...valid,people:'9'}).ok, false);
+    else assert.equal(m.advance(s, action, {...valid,people:'13'}).ok, false);
+    assert.equal(m.advance(s, action, valid).ok, true);
+  }
+});
+
+test('search, monetary fields, roles and space definitions validate tutorial input', () => {
+  const m = model();
+  const cases = [
+    ['equipment','search:equipment',{query:'no match'}],
+    ['maintenance','submit:maintenance',{cost:'-1'}],
+    ['maintenance','submit:maintenance',{cost:'NaN'}],
+    ['procurement','submit:procurement',{amount:'-5'}],
+    ['procurement','accept:procurement',{status:'pending'}],
+    ['members','submit:member',{username:'bad user'}],
+    ['members','submit:member',{role:'developer'}],
+    ['members','submit:member',{role:'admin'}],
+    ['laboratories','submit:lab',{sort:'-1'}],
+    ['laboratories','submit:lab',{sort:'1.2'}],
+    ['laboratories','submit:lab-edit',{active:'false'}]
+  ];
+  for (const [lesson,action,patch] of cases) {
+    const s = stateAt(m,lesson,action), before = JSON.stringify(s);
+    assert.equal(m.advance(s,action,{...m.demoValues(s),...patch}).ok,false,`${lesson}/${action}`);
+    assert.equal(JSON.stringify(s),before);
+  }
+});
+
+test('previous and restart restore virtual state, including after completion', () => {
+  const m = model();
+  for (const lesson of m.lessons) {
+    const s = m.createState('developer'); m.start(s,lesson.id);
+    assert.equal(m.previous(s),false);
+    for (const step of lesson.steps) {
+      const before = JSON.stringify(s);
+      const values = m.demoValues(s);
+      m.advance(s,step.action,values);
+      assert.equal(m.previous(s),true);
+      assert.equal(JSON.stringify(s),before,`${lesson.id}/${step.action}`);
+      m.advance(s,step.action,values);
+    }
+    m.restart(s);
+    assert.equal(s.stepIndex,0); assert.equal(s.completed,false);
+    assert.equal(JSON.stringify(s.values),'{}'); assert.equal(s.history.length,0);
+  }
+});
+
+test('virtual form values never change production app state and restart clears prior lesson input', () => {
+  const m = model(); const s = stateAt(m,'equipment','submit:booking');
+  m.advance(s,'submit:booking',{...m.demoValues(s),purpose:'My custom practice'});
+  assert.equal(s.values['submit:booking'].purpose,'My custom practice');
+  m.start(s,'room'); assert.equal(JSON.stringify(s.values),'{}');
+  const second = m.createState('member'); assert.equal(JSON.stringify(second.values),'{}');
+});
+
+test('tutorial has no business IO and its embedded document disables scripts and submissions', () => {
+  assert.match(html,/connect-src 'none'/); assert.match(html,/form-action 'none'/); assert.match(html,/default-src 'none'/);
+  assert.doesNotMatch(script,/\bfetch\s*\(|XMLHttpRequest|WebSocket|EventSource|sendBeacon|localStorage|sessionStorage|indexedDB|document\.cookie|apiRequest/);
+  assert.match(html, /<script src="\.\/tutorial\.js"><\/script>/);
+  assert.doesNotMatch(html, /<script>/);
+  assert.match(html, /script-src 'self'/);
+  assert.match(shell,/<iframe[^>]+id="guide-practice-frame"[^>]+sandbox="allow-same-origin"/);
+  assert.doesNotMatch(shell,/<iframe[^>]+allow-scripts/);
+  assert.match(app,/guidePracticeFrame\.srcdoc = source/);
+  assert.match(app,/TutorialModel\.mount\(guidePracticeFrame\.contentDocument/);
+  assert.match(app,/guidePracticeLoadTimer/);
+  assert.match(app,/guidePracticeCleanup\?\.\(\)/);
+  assert.match(app,/script-src 'none'/);
+  assert.match(app,/guidePracticeFrame\.removeAttribute\("srcdoc"\)/);
+  assert.match(script,/event\.preventDefault\(\)/);
+  assert.match(script,/visibilitychange/); assert.match(script,/pagehide/);
+});
+
+test('guide integration keeps text reference and loads tutorial only for an open signed-in guide', () => {
+  assert.match(shell,/id="guide-tab-practice"/); assert.match(shell,/id="guide-tab-start"/);
+  assert.match(app,/if \(!guideModal\.classList\.contains\("open"\) \|\| !currentUser\) return/);
+  assert.match(app,/credentials: "omit"/);
+  assert.match(app,/if \(currentRole !== role\) clearGuidePractice\(\)/);
+  assert.match(app,/function showLogin\([^)]*\) \{\s*setGuideModal\(false\)/);
+  assert.match(app,/onHelp: \(\) => activateGuideSection/);
+  assert.match(shell,/id="guide-practice-retry"/);
+});
+
+// Native form submission is intentionally blocked by the iframe sandbox.
+test('sandbox practice submits through local controls and handles Enter without navigation', () => {
+  assert.match(script, /type="button" data-submit/);
+  assert.doesNotMatch(script, /type="submit"/);
+  assert.match(script, /function submitPractice\(form\)/);
+  assert.match(script, /event\.key === "Enter"/);
+  assert.match(script, /submitPractice\(event\.target\.closest\("form"\)\)/);
+});

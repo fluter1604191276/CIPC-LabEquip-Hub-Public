@@ -4463,3 +4463,17 @@ button:disabled {
 .update-manual-card { padding:24px; margin-top:18px; }
 .update-manual-card pre { white-space:pre-wrap; overflow:auto; padding:14px; border-radius:8px; background:#1f2937; color:#f3f4f6; font:12px/1.7 ui-monospace, SFMono-Regular, Menlo, monospace; }
 .update-manual-card .panel-heading { align-items:center; }
+
+/* Interactive guide uses an isolated document; ordinary reference tabs retain their layout. */
+.guide-backdrop.interactive .guide-dialog { width: min(1240px, 100%); height: min(850px, calc(100dvh - 40px)); }
+.guide-content.is-interactive { display: flex; flex: 1; min-height: 0; padding: 0; overflow: hidden; }
+#guide-panel-practice { display: flex; flex-direction: column; width: 100%; max-width: none; min-height: 0; height: 100%; }
+#guide-panel-practice[hidden] { display: none; }
+#guide-practice-frame { display: block; width: 100%; height: 100%; flex: 1; min-height: 0; border: 0; background: var(--bg); }
+#guide-practice-frame[hidden], #guide-practice-loading[hidden], #guide-practice-error[hidden] { display: none; }
+#guide-practice-loading, #guide-practice-error { margin: 24px; padding: 20px; border: 1px solid var(--line); border-radius: 8px; font-size: 14px; }
+#guide-practice-error button { margin: 8px 10px 0 0; }
+.guide-tab[data-guide-section="practice"] { font-weight: 700; }
+@media (max-width: 760px) {
+  .guide-backdrop.interactive .guide-dialog { height: calc(100dvh - 20px); }
+}
